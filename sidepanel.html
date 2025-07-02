@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrompterHub丨完美提示，精彩对话</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #333;
+            background-color: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .header {
+            background: #f8faff;
+            padding: 16px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .header-logo {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0;
+            background: linear-gradient(to right, #2563eb, #9333ea, #ec4899);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .header-logo:hover {
+            transform: scale(1.02);
+        }
+
+        .header-user-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 6px;
+            padding: 4px 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .header-user-info:hover {
+            background: rgba(59, 130, 246, 0.08);
+            border-color: rgba(59, 130, 246, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .header-user-info:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(59, 130, 246, 0.05);
+        }
+
+        .header-user-avatar {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .header-user-avatar svg {
+            opacity: 0.8;
+        }
+
+        .header-user-info.logged-in .header-user-avatar {
+            color: #3b82f6;
+        }
+
+        .header-user-info.logged-in .header-user-avatar svg {
+            opacity: 1;
+        }
+
+        .header-user-name {
+            font-weight: 500;
+            font-size: 12px;
+            margin: 0;
+            color: #1f2937;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
+            text-decoration: none;
+        }
+
+        .header-user-info.logged-in .header-user-name {
+            color: #3b82f6;
+        }
+
+        .header-user-info:not(.logged-in) .header-user-name {
+            color: #6b7280;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Mini刷新按钮样式 */
+        .refresh-btn-mini {
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 4px;
+            padding: 4px;
+            color: #3b82f6;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .refresh-btn-mini:hover {
+            background: rgba(59, 130, 246, 0.12);
+            border-color: rgba(59, 130, 246, 0.25);
+            transform: scale(1.05);
+        }
+
+        .refresh-btn-mini svg {
+            transition: transform 0.3s ease;
+        }
+
+        .refresh-btn-mini:active svg {
+            transform: rotate(180deg);
+        }
+
+        .refresh-btn-mini:active {
+            transform: scale(0.95);
+        }
+
+        /* 气泡提示样式 */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            font-size: 13px;
+            color: #374151;
+            max-width: 280px;
+            word-wrap: break-word;
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: auto;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-left: 4px solid #10b981;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(255, 255, 255, 0.95));
+        }
+
+        .toast.info {
+            border-left: 4px solid #3b82f6;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(255, 255, 255, 0.95));
+        }
+
+        .toast.warning {
+            border-left: 4px solid #f59e0b;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(255, 255, 255, 0.95));
+        }
+
+        .toast.error {
+            border-left: 4px solid #ef4444;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(255, 255, 255, 0.95));
+        }
+
+        .toast-icon {
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .toast-content {
+            display: inline-block;
+            line-height: 1.4;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 80px);
+        }
+
+        .login-panel {
+            padding: 32px 24px;
+            text-align: center;
+            background: white;
+            margin: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .login-panel h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+
+        .login-panel p {
+            color: #64748b;
+            margin-bottom: 24px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .button-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .button-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .button-secondary {
+            background-color: transparent;
+            color: #3b82f6;
+            border: 1px solid #e2e8f0;
+        }
+
+        .button-secondary:hover {
+            background-color: #f1f5f9;
+        }
+
+        .retry-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .retry-btn:hover {
+            background-color: #dc2626;
+        }
+
+        .visit-site-btn {
+            background-color: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 12px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .visit-site-btn:hover {
+            background-color: #2563eb;
+        }
+
+        .user-tabs {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .tab-nav {
+            display: flex;
+        }
+
+        .tab-item {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 12px;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-item.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+        .tab-item:hover {
+            color: #1e293b;
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .card-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* 通用卡片样式 */
+        .prompt-card, .template-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .prompt-card:hover, .template-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 收藏模板特殊样式 */
+        .template-card {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .card-header {
+            margin-bottom: 12px;
+        }
+
+        .card-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.3;
+            margin: 0;
+            flex: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-badges {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .source-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        .source-badge.ai {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+            border: 1px solid #93c5fd;
+        }
+
+        .source-badge.import {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .source-badge.template {
+            background-color: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fbbf24;
+        }
+
+        .star-badge {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 12px;
+            background-color: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fbbf24;
+        }
+
+        .star-icon {
+            font-size: 8px;
+        }
+
+        .card-tags {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 4px;
+            overflow: hidden;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tags-left {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 4px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .tags-right {
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        .collected-info {
+            font-size: 10px;
+            color: #6b7280;
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 8px;
+            padding: 2px 6px;
+            white-space: nowrap;
+        }
+
+        /* 分类标签样式 */
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-weight: 500;
+            border: 1px solid;
+        }
+
+        .category-icon {
+            font-size: 8px;
+        }
+
+        .category-text {
+            font-size: 9px;
+        }
+
+        /* 分类颜色 */
+        .bg-blue-100 { background-color: #dbeafe; }
+        .text-blue-800 { color: #1e40af; }
+        .border-blue-200 { border-color: #bfdbfe; }
+
+        .bg-purple-100 { background-color: #f3e8ff; }
+        .text-purple-800 { color: #6b21a8; }
+        .border-purple-200 { border-color: #ddd6fe; }
+
+        .bg-green-100 { background-color: #dcfce7; }
+        .text-green-800 { color: #166534; }
+        .border-green-200 { border-color: #bbf7d0; }
+
+        .bg-orange-100 { background-color: #fed7aa; }
+        .text-orange-800 { color: #9a3412; }
+        .border-orange-200 { border-color: #fdd4a7; }
+
+        .bg-indigo-100 { background-color: #e0e7ff; }
+        .text-indigo-800 { color: #3730a3; }
+        .border-indigo-200 { border-color: #c7d2fe; }
+
+        .bg-pink-100 { background-color: #fce7f3; }
+        .text-pink-800 { color: #9d174d; }
+        .border-pink-200 { border-color: #fbcfe8; }
+
+        .bg-yellow-100 { background-color: #fef3c7; }
+        .text-yellow-800 { color: #92400e; }
+        .border-yellow-200 { border-color: #fde68a; }
+
+        .bg-cyan-100 { background-color: #cffafe; }
+        .text-cyan-800 { color: #155e75; }
+        .border-cyan-200 { border-color: #a5f3fc; }
+
+        .bg-red-100 { background-color: #fee2e2; }
+        .text-red-800 { color: #991b1b; }
+        .border-red-200 { border-color: #fecaca; }
+
+        .bg-emerald-100 { background-color: #d1fae5; }
+        .text-emerald-800 { color: #065f46; }
+        .border-emerald-200 { border-color: #a7f3d0; }
+
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .text-gray-800 { color: #1f2937; }
+        .border-gray-200 { border-color: #e5e7eb; }
+
+        .tag-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 12px;
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .more-tags {
+            background-color: #f8fafc;
+            color: #64748b;
+        }
+
+        .card-content {
+            margin-bottom: 12px;
+        }
+
+        .card-description {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.4;
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-meta {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-author {
+            font-size: 11px;
+            color: #94a3b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-date {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-left: 8px;
+        }
+
+        .star-btn.active {
+            color: #f59e0b;
+        }
+
+        .star-btn.active:hover {
+            background-color: #fef3c7;
+        }
+
+        .card-stats {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .card-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .card-author {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .stat-btn {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 11px;
+            color: #94a3b8;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .stat-btn:hover {
+            background-color: #f1f5f9;
+        }
+
+        .like-btn.active {
+            color: #ef4444;
+        }
+
+        .like-btn.active:hover {
+            background-color: #fef2f2;
+        }
+
+        .stat-icon {
+            font-size: 10px;
+        }
+
+        .stat-count {
+            font-size: 10px;
+        }
+
+        .stat-text {
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .copy-btn {
+            color: #3b82f6;
+            min-width: 35px;
+        }
+
+        .copy-btn:hover {
+            background-color: #eff6ff;
+        }
+
+        .copy-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 16px;
+            color: #64748b;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 16px;
+            color: #64748b;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px 16px;
+            color: #ef4444;
+        }
+
+        .user-info {
+            background: white;
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-details h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .user-details p {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 360px) {
+            .card-title-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .card-badges {
+                align-self: flex-end;
+            }
+            
+            .card-footer {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .card-stats {
+                align-self: flex-end;
+            }
+        }
+
+        /* 滚动条样式 */
+        .tab-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .tab-content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .tab-content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .tab-content::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* 详情视图样式 */
+        .detail-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+            flex-shrink: 0;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: #475569;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .back-icon {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .detail-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: none;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .action-text-btn {
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.05);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .action-text-btn:hover {
+            background: rgba(59, 130, 246, 0.08);
+            border-color: rgba(59, 130, 246, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .action-text-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(59, 130, 246, 0.05);
+        }
+
+        .action-icon {
+            font-size: 16px;
+        }
+
+        .detail-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .detail-info {
+            margin-bottom: 24px;
+        }
+
+        .detail-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0 0 12px 0;
+            line-height: 1.4;
+        }
+
+        .detail-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .detail-author-date {
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .detail-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .detail-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .detail-all-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .detail-prompt {
+            margin-bottom: 24px;
+        }
+
+        .prompt-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin: 0 0 8px 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .prompt-content {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #374151;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 70vh;
+            min-height: 120px;
+            overflow-y: auto;
+        }
+
+        .prompt-description, .prompt-original {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #4b5563;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .detail-actions-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .action-btn-large {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .action-btn-large:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .copy-full-btn {
+            color: #2563eb;
+            border-color: #dbeafe;
+        }
+
+        .copy-full-btn:hover {
+            background: #eff6ff;
+            border-color: #93c5fd;
+        }
+
+        .like-detail-btn {
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+
+        .like-detail-btn:hover {
+            background: #fef2f2;
+            border-color: #fca5a5;
+        }
+
+        .like-detail-btn.active {
+            background: #fef2f2;
+            border-color: #f87171;
+            color: #b91c1c;
+        }
+
+        .visit-btn {
+            color: #059669;
+            border-color: #d1fae5;
+        }
+
+        .visit-btn:hover {
+            background: #ecfdf5;
+            border-color: #86efac;
+        }
+
+        .action-text {
+            font-size: 13px;
+        }
+
+        /* 详情视图滚动条 */
+        .detail-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .detail-content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .detail-content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .detail-content::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 360px) {
+            .header {
+                padding: 12px;
+            }
+            
+            .header-brand h1 {
+                font-size: 14px;
+            }
+            
+            .header-brand p {
+                font-size: 9px;
+            }
+            
+            .header-user {
+                font-size: 11px;
+            }
+            
+            .header-user-name {
+                max-width: 70px;
+            }
+            
+            .refresh-btn-mini {
+                width: 20px;
+                height: 20px;
+            }
+            
+            .detail-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .detail-stats {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+        }
+
+        /* 增强的错误样式 */
+        .error {
+            text-align: center;
+            padding: 32px 16px;
+            color: #64748b;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .error-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 12px;
+        }
+
+        .error-description {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .error-list {
+            text-align: left;
+            margin: 16px 0;
+            padding-left: 20px;
+        }
+
+        .error-list li {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .error-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 20px 0;
+        }
+
+        .retry-btn.primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+        }
+
+        .retry-btn.secondary {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .retry-btn.primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+        }
+
+        .retry-btn.secondary:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .error-details {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .error-details summary {
+            cursor: pointer;
+            font-weight: 500;
+            color: #475569;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        .error-details[open] summary {
+            margin-bottom: 12px;
+        }
+
+        .error-details p {
+            font-size: 12px;
+            color: #64748b;
+            margin: 4px 0;
+            font-family: monospace;
+        }
+
+        /* 调试窗口样式 */
+        .debug-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .debug-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .debug-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .debug-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .debug-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .debug-close:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .debug-body {
+            padding: 24px;
+        }
+
+        .debug-section {
+            margin-bottom: 24px;
+        }
+
+        .debug-section h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+            margin: 0 0 12px 0;
+        }
+
+        .debug-code {
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #374151;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .debug-solutions {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .debug-solutions li {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .debug-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .test-btn {
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .test-btn:hover {
+            background: #2563eb;
+        }
+
+        .test-result {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .test-result h5 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .test-result p {
+            margin: 4px 0;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        /* 社区链接样式 */
+        .tab-top-link {
+            padding: 4px 16px 0 16px;
+            text-align: right;
+            margin-bottom: 4px;
+        }
+
+        .community-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .community-link:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+
+        .link-separator {
+            color: #9ca3af;
+            margin: 0 8px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1 class="header-logo">PrompterHub</h1>
+        </div>
+        <div class="header-right">
+            <div class="header-user-info" id="headerUser">
+                <div class="header-user-avatar" id="headerUserAvatar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+                        <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span class="header-user-name" id="headerUserName">未登录</span>
+            </div>
+            <button class="refresh-btn-mini" id="refreshBtn" title="刷新登录状态">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M21 3v5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 21v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 气泡提示容器 -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div class="main-content">
+        <!-- 登录面板 -->
+        <div id="loginPanel" class="login-panel">
+            <h2>登录 PrompterHub</h2>
+            <p>登录后查看您的提示词和收藏</p>
+            <button class="button button-primary" id="loginBtn">登录</button>
+            <button class="button button-secondary" id="signupBtn">注册</button>
+        </div>
+
+        <!-- 用户面板 -->
+        <div id="userPanel" style="display: none;">
+            <!-- 原用户信息区域已移至header，此处保留为隐藏状态以兼容旧代码 -->
+            <div class="user-info" style="display: none;">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-details">
+                    <h3 id="userName">用户名</h3>
+                    <p id="userEmail">user@example.com</p>
+                </div>
+            </div>
+
+            <!-- Tab导航 -->
+            <div class="user-tabs">
+                <div class="tab-nav">
+                    <button class="tab-item active" data-tab="created">
+                        我的创作
+                    </button>
+                    <button class="tab-item" data-tab="liked">
+                        我的点赞
+                    </button>
+                    <button class="tab-item" data-tab="collected">
+                        我的收藏
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab内容 -->
+            <div class="tab-content">
+                <div id="tabContent">
+                    <div class="loading">正在加载...</div>
+                </div>
+            </div>
+
+            <!-- 详情视图 -->
+            <div id="detailView" class="detail-view" style="display: none;">
+                <!-- 详情头部 -->
+                <div class="detail-header">
+                    <button class="back-btn" id="backBtn" title="返回列表">
+                        <span class="back-icon">←</span>
+                        <span class="back-text">返回</span>
+                    </button>
+                    <div class="detail-actions">
+                        <button class="action-text-btn" id="shareBtn" title="分享">
+                            分享
+                        </button>
+                        <button class="action-text-btn" id="copyBtn" title="复制内容">
+                            复制
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 详情内容 -->
+                <div class="detail-content">
+                    <!-- 提示词信息 -->
+                    <div class="detail-info">
+                        <h2 class="detail-title" id="detailTitle">提示词标题</h2>
+                        
+                        <div class="detail-meta">
+                            <span class="detail-author-date" id="detailAuthorDate">作者 · 创建时间</span>
+                        </div>
+
+                        <div class="detail-stats" id="detailStats">
+                            <!-- 统计信息 -->
+                        </div>
+
+                        <div class="detail-all-tags" id="detailAllTags">
+                            <!-- 所有标签：源标记 + 分类标签 -->
+                        </div>
+                    </div>
+
+                    <!-- 提示词内容 -->
+                    <div class="detail-prompt">
+                        <div class="prompt-section">
+                            <h3 class="section-title">完整提示词</h3>
+                            <div class="prompt-content" id="promptContent">
+                                <!-- 完整的提示词内容 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="detail-actions-bottom">
+                        <button class="action-btn-large visit-btn" id="visitBtn">
+                            <span class="action-icon">🔗</span>
+                            <span class="action-text">查看网页版</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html> 
