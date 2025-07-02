@@ -413,6 +413,9 @@ class PrompterHubSidepanel {
             headerUser.classList.remove('logged-in');
         }
         
+        // 显示品牌标题（移除logged-in类）
+        document.body.classList.remove('logged-in');
+        
         // 显示状态信息
         this.showToast('请先登录 PrompterHub.cn', 'info');
     }
@@ -424,6 +427,9 @@ class PrompterHubSidepanel {
         
         if (loginPanel) loginPanel.style.display = 'none';
         if (userPanel) userPanel.style.display = 'block';
+
+        // 隐藏品牌标题（添加logged-in类）
+        document.body.classList.add('logged-in');
 
         if (this.currentUser) {
             // 使用真实的用户信息
@@ -1601,6 +1607,9 @@ class PrompterHubSidepanel {
         // 填充详情内容
         this.populateDetailView(item);
 
+        // 添加详情模式类，隐藏header
+        document.body.classList.add('detail-mode');
+
         // 显示详情视图
         const tabContent = document.querySelector('.tab-content');
         const detailView = document.getElementById('detailView');
@@ -1614,6 +1623,9 @@ class PrompterHubSidepanel {
         console.log('Hiding detail view');
         this.isDetailView = false;
         this.currentDetailItem = null;
+
+        // 移除详情模式类，显示header
+        document.body.classList.remove('detail-mode');
 
         // 隐藏详情视图，显示列表
         const tabContent = document.querySelector('.tab-content');

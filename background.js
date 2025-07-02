@@ -19,5 +19,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// 允许侧边栏功能
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }); 
+// 处理插件图标点击事件，打开侧边栏
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    // 检查chrome.sidePanel API是否可用
+    if (chrome.sidePanel && chrome.sidePanel.open) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+    } else {
+      console.log('Side panel API not available');
+    }
+  } catch (error) {
+    console.error('Error opening side panel:', error);
+  }
+}); 

@@ -235,16 +235,10 @@
             display: flex;
             flex-direction: column;
             min-height: calc(100vh - 80px);
+            position: relative;
         }
 
-        .login-panel {
-            padding: 32px 24px;
-            text-align: center;
-            background: white;
-            margin: 16px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
+
 
         .login-panel h2 {
             font-size: 20px;
@@ -255,6 +249,121 @@
         .login-panel p {
             color: #64748b;
             margin-bottom: 24px;
+        }
+
+        /* 品牌标题区域样式 */
+        .brand-section {
+            text-align: center;
+            padding: 60px 24px 40px 24px;
+            background: transparent;
+        }
+
+        /* 默认品牌标题只在登录状态显示 */
+        .brand-section {
+            display: block;
+        }
+
+        /* 当用户已登录时隐藏品牌标题 */
+        body.logged-in .brand-section,
+        .logged-in .brand-section {
+            display: none !important;
+        }
+
+        .login-brand-title {
+            background: linear-gradient(to right, #2563eb, #9333ea, #ec4899);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            display: block;
+            line-height: 1.2;
+        }
+
+        .login-brand-subtitle {
+            font-size: 20px;
+            color: #6b7280;
+            font-weight: normal;
+            margin-bottom: 0;
+            display: block;
+            line-height: 1.4;
+        }
+
+        /* 调整登录面板样式 */
+        .login-panel {
+            padding: 24px;
+            text-align: center;
+            background: white;
+            margin: 32px 16px 120px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 登录界面底部链接样式 */
+        .login-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            padding: 24px;
+            background: #f8fafc;
+        }
+
+        .login-footer-links {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .footer-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .footer-link:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+
+        .footer-separator {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 360px) {
+            .brand-section {
+                padding: 40px 16px 25px 16px;
+            }
+            
+            .login-brand-title {
+                font-size: 26px;
+            }
+            
+            .login-brand-subtitle {
+                font-size: 17px;
+            }
+            
+            .login-panel {
+                margin: 20px 12px 100px 12px;
+                padding: 20px;
+            }
+
+            .login-footer {
+                padding: 16px;
+            }
+
+            .login-footer-links {
+                font-size: 13px;
+                gap: 6px;
+            }
         }
 
         .button {
@@ -819,6 +928,11 @@
             z-index: 100;
             display: flex;
             flex-direction: column;
+        }
+
+        /* 详情视图显示时隐藏header */
+        body.detail-mode .header {
+            display: none !important;
         }
 
         .detail-header {
@@ -1416,12 +1530,29 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <div class="main-content">
+        <!-- 品牌标题区域 -->
+        <div class="brand-section">
+            <span class="login-brand-title">PrompterHub</span>
+            <span class="login-brand-subtitle">探索AI的无限可能</span>
+        </div>
+        
         <!-- 登录面板 -->
         <div id="loginPanel" class="login-panel">
             <h2>登录 PrompterHub</h2>
-            <p>登录后查看您的提示词和收藏</p>
+            <p>在任何网页调用您创作和收藏的提示词</p>
             <button class="button button-primary" id="loginBtn">登录</button>
             <button class="button button-secondary" id="signupBtn">注册</button>
+        </div>
+
+        <!-- 登录界面底部链接 -->
+        <div class="login-footer">
+            <div class="login-footer-links">
+                <a href="https://www.prompterhub.cn/dashboard" class="footer-link" id="creationLink" target="_blank">创作</a>
+                <span class="footer-separator">·</span>
+                <a href="https://www.prompterhub.cn/community" class="footer-link" id="communityLink" target="_blank">社区</a>
+                <span class="footer-separator">·</span>
+                <a href="https://www.prompterhub.cn/best-practices" class="footer-link" id="templatesLink" target="_blank">模板库</a>
+            </div>
         </div>
 
         <!-- 用户面板 -->
@@ -1507,7 +1638,6 @@
                     <!-- 操作按钮 -->
                     <div class="detail-actions-bottom">
                         <button class="action-btn-large visit-btn" id="visitBtn">
-                            <span class="action-icon">🔗</span>
                             <span class="action-text">查看网页版</span>
                         </button>
                     </div>
