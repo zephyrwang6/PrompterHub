@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PrompterHub丨完美提示词助手",
   "version": "0.5.0",
-  "description": "PrompterHub prompt management extension for managing your creations, likes, and collections",
+  "description": "PrompterHub 完美提示词助手，在任何网页调用您创作和收藏的提示词",
   "permissions": [
     "activeTab",
     "storage",
@@ -24,7 +24,6 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "PrompterHub Assistant",
     "default_icon": {
       "16": "icons/icon16.png",

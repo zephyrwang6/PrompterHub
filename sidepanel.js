@@ -1,5 +1,160 @@
 ﻿// PrompterHub Assistant - Sidepanel JavaScript
 
+// 缓存管理器类
+class CacheManager {
+    constructor() {
+        this.memoryCache = new Map();
+        this.cachePrefix = 'prompterhub_cache_';
+        this.defaultTTL = 5 * 60 * 1000; // 5分钟默认过期时间
+    }
+
+    // 生成缓存键
+    generateKey(category, identifier) {
+        return `${this.cachePrefix}${category}_${identifier}`;
+    }
+
+    // 获取缓存数据
+    async get(key, useMemoryCache = true) {
+        try {
+            // 1. 先检查内存缓存
+            if (useMemoryCache && this.memoryCache.has(key)) {
+                const cached = this.memoryCache.get(key);
+                if (this.isValid(cached)) {
+                    console.log(`✅ 内存缓存命中: ${key}`);
+                    return cached.data;
+                } else {
+                    this.memoryCache.delete(key);
+                }
+            }
+
+            // 2. 检查Chrome存储缓存
+            const result = await chrome.storage.local.get([key]);
+            if (result[key] && this.isValid(result[key])) {
+                console.log(`✅ 存储缓存命中: ${key}`);
+                // 同时更新内存缓存
+                if (useMemoryCache) {
+                    this.memoryCache.set(key, result[key]);
+                }
+                return result[key].data;
+            }
+
+            console.log(`❌ 缓存未命中: ${key}`);
+            return null;
+        } catch (error) {
+            console.error('缓存读取失败:', error);
+            return null;
+        }
+    }
+
+    // 设置缓存数据
+    async set(key, data, ttl = this.defaultTTL) {
+        try {
+            const cacheItem = {
+                data: data,
+                timestamp: Date.now(),
+                ttl: ttl
+            };
+
+            // 1. 设置内存缓存
+            this.memoryCache.set(key, cacheItem);
+
+            // 2. 设置Chrome存储缓存
+            await chrome.storage.local.set({
+                [key]: cacheItem
+            });
+
+            console.log(`💾 缓存已设置: ${key} (TTL: ${ttl}ms)`);
+        } catch (error) {
+            console.error('缓存设置失败:', error);
+        }
+    }
+
+    // 检查缓存是否有效
+    isValid(cacheItem) {
+        if (!cacheItem || !cacheItem.timestamp) {
+            return false;
+        }
+        const age = Date.now() - cacheItem.timestamp;
+        return age < cacheItem.ttl;
+    }
+
+    // 清除指定缓存
+    async clear(key) {
+        try {
+            this.memoryCache.delete(key);
+            await chrome.storage.local.remove([key]);
+            console.log(`🗑️ 缓存已清除: ${key}`);
+        } catch (error) {
+            console.error('缓存清除失败:', error);
+        }
+    }
+
+    // 清除所有缓存
+    async clearAll() {
+        try {
+            this.memoryCache.clear();
+            const allKeys = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(allKeys).filter(key => key.startsWith(this.cachePrefix));
+            await chrome.storage.local.remove(cacheKeys);
+            console.log(`🗑️ 已清除所有缓存 (${cacheKeys.length}个)`);
+        } catch (error) {
+            console.error('清除所有缓存失败:', error);
+        }
+    }
+
+    // 获取缓存统计信息
+    getStats() {
+        return {
+            memorySize: this.memoryCache.size,
+            memorySizeBytes: JSON.stringify([...this.memoryCache]).length,
+        };
+    }
+}
+
+// 性能监控器类
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = {};
+    }
+
+    // 开始性能测量
+    start(label) {
+        this.metrics[label] = {
+            startTime: Date.now(),
+            startMemory: performance.memory ? performance.memory.usedJSHeapSize : 0
+        };
+    }
+
+    // 结束性能测量
+    end(label) {
+        if (!this.metrics[label]) {
+            console.warn(`性能监控: 未找到标签 ${label}`);
+            return;
+        }
+
+        const metric = this.metrics[label];
+        const duration = Date.now() - metric.startTime;
+        const memoryUsed = performance.memory ? 
+            performance.memory.usedJSHeapSize - metric.startMemory : 0;
+
+        const result = {
+            duration: duration,
+            memoryUsed: memoryUsed,
+            timestamp: new Date().toISOString()
+        };
+
+        console.log(`⚡ 性能指标 [${label}]: ${duration}ms, 内存: ${(memoryUsed / 1024 / 1024).toFixed(2)}MB`);
+        
+        delete this.metrics[label];
+        return result;
+    }
+
+    // 记录简单指标
+    record(label, value) {
+        console.log(`📊 指标 [${label}]: ${value}`);
+    }
+}
+
 class PrompterHubSidepanel {
     constructor() {
         this.currentUser = null;
@@ -13,6 +168,10 @@ class PrompterHubSidepanel {
         this.isDetailView = false; // 是否在详情视图
         this.activeToasts = []; // 当前显示的提示列表
         
+        // 缓存系统初始化
+        this.cacheManager = new CacheManager();
+        this.performanceMonitor = new PerformanceMonitor();
+        
         this.init();
     }
 
@@ -24,6 +183,115 @@ class PrompterHubSidepanel {
         setInterval(() => {
             this.checkAuthStatus();
         }, 30000); // 每30秒检查一次
+        
+        // 初始化性能监控
+        this.initPerformanceMonitoring();
+    }
+
+    // 初始化性能监控
+    initPerformanceMonitoring() {
+        // 监控页面性能
+        window.addEventListener('load', () => {
+            this.performanceMonitor.record('pageLoadTime', Date.now());
+        });
+        
+        // 监控内存使用情况
+        setInterval(() => {
+            if (performance.memory) {
+                this.performanceMonitor.record('memoryUsage', {
+                    used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
+                    total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
+                    limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024)
+                });
+            }
+        }, 30000); // 每30秒记录一次内存使用情况
+        
+        // 监控缓存效率
+        setInterval(() => {
+            const cacheStats = this.cacheManager.getStats();
+            this.performanceMonitor.record('cacheStats', cacheStats);
+        }, 60000); // 每分钟记录一次缓存统计
+    }
+
+    // 获取性能报告
+    getPerformanceReport() {
+        const report = {
+            timestamp: new Date().toISOString(),
+            cacheStats: this.cacheManager.getStats(),
+            memoryUsage: performance.memory ? {
+                used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
+                total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
+                limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024)
+            } : null,
+            userInfo: {
+                isLoggedIn: !!this.currentUser,
+                currentTab: this.currentTab,
+                isDetailView: this.isDetailView
+            }
+        };
+        
+        console.log('📊 性能报告:', report);
+        return report;
+    }
+
+    // 清理缓存的便捷方法
+    async clearCache() {
+        await this.cacheManager.clearAll();
+        this.showToast('缓存已清理', 'success');
+    }
+
+    // 初始化置顶按钮
+    initScrollToTopButton() {
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        if (!scrollToTopBtn) return;
+
+        // 监听 tab-content 的滚动事件
+        const tabContent = document.querySelector('.tab-content');
+        if (tabContent) {
+            tabContent.addEventListener('scroll', () => {
+                this.handleScroll(scrollToTopBtn, tabContent);
+            });
+        }
+
+        // 监听详情页面的滚动事件
+        const detailContent = document.querySelector('.detail-content');
+        if (detailContent) {
+            detailContent.addEventListener('scroll', () => {
+                this.handleScroll(scrollToTopBtn, detailContent);
+            });
+        }
+    }
+
+    // 处理滚动事件
+    handleScroll(button, scrollContainer) {
+        // 只在用户已登录且不在详情视图时显示按钮
+        if (!this.currentUser || this.isDetailView) {
+            button.classList.remove('show');
+            return;
+        }
+
+        const scrollTop = scrollContainer.scrollTop;
+        const threshold = 100; // 滚动超过100px时显示按钮
+
+        if (scrollTop > threshold) {
+            button.classList.add('show');
+        } else {
+            button.classList.remove('show');
+        }
+    }
+
+    // 滚动到顶部
+    scrollToTop() {
+        const activeScrollContainer = this.isDetailView ? 
+            document.querySelector('.detail-content') : 
+            document.querySelector('.tab-content');
+            
+        if (activeScrollContainer) {
+            activeScrollContainer.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
     }
 
     bindEvents() {
@@ -129,12 +397,16 @@ class PrompterHubSidepanel {
             });
         }
 
-        const visitBtn = document.getElementById('visitBtn');
-        if (visitBtn) {
-            visitBtn.addEventListener('click', () => {
-                this.visitPromptPage();
+        // 置顶按钮事件
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        if (scrollToTopBtn) {
+            scrollToTopBtn.addEventListener('click', () => {
+                this.scrollToTop();
             });
         }
+
+        // 监听页面滚动，控制置顶按钮显示
+        this.initScrollToTopButton();
 
         // Listen for messages from content script and background
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -575,122 +847,195 @@ class PrompterHubSidepanel {
         const tabContent = document.getElementById('tabContent');
         if (!tabContent) return;
         
-        console.log('Loading user data for tab:', tabType, 'User:', this.currentUser);
-        tabContent.innerHTML = '<div class="loading">正在加载...</div>';
-
+        console.log('🔄 加载用户数据 (优化版本):', tabType);
+        this.performanceMonitor.start('loadUserData');
+        
         try {
             if (!this.currentUser) {
                 throw new Error('未找到用户信息，请先登录');
             }
 
+            // 1. 显示渐进式加载状态
+            this.showProgressiveLoading(tabContent, tabType);
+
             let data;
-            
-            // 使用真实的用户信息构建API调用
             const userId = this.currentUser.id;
             const userNickname = this.currentUser.nickname || this.currentUser.email?.split('@')[0];
             
-            console.log('API call parameters:', { userId, userNickname, tabType });
+            console.log('📊 API调用参数:', { userId, userNickname, tabType });
 
+            // 2. 根据标签类型执行相应的数据加载
             switch (tabType) {
                 case 'created':
-                    // 创作内容 - 使用nickname作为username参数
                     if (!userNickname) {
                         throw new Error('无法获取用户名信息');
                     }
-                    data = await this.fetchUserPrompts(userNickname);
-                    console.log('获取到的创作数据:', data);
-                    if (data && data.prompts) {
-                        console.log('提示词数据详情:', data.prompts.slice(0, 2)); // 显示前2条详细数据
-                    }
+                    this.updateLoadingProgress('正在获取创作内容...');
+                    data = await this.fetchUserCreated(userNickname);
+                    console.log('✅ 创作数据获取完成:', data?.prompts?.length || 0, '条');
                     this.renderPromptCards(data.prompts || [], tabContent, 'prompts');
                     break;
+
                 case 'liked':
-                    // 点赞内容 - 需要传递userId
                     if (!userNickname) {
                         throw new Error('无法获取用户名信息');
                     }
-                    data = await this.fetchUserLiked(userNickname, userId);
-                    console.log('获取到的点赞数据:', data);
-                    if (data && data.prompts) {
-                        console.log('点赞提示词数据详情:', data.prompts.slice(0, 2)); // 显示前2条详细数据
-                    }
+                    this.updateLoadingProgress('正在获取点赞内容...');
+                    data = await this.fetchUserLikedOptimized(userNickname, userId);
+                    console.log('✅ 点赞数据获取完成:', data?.prompts?.length || 0, '条');
                     this.renderPromptCards(data.prompts || [], tabContent, 'prompts');
                     break;
+
                 case 'collected':
-                    // 收藏内容 - 使用userId
+                    this.updateLoadingProgress('正在获取收藏内容...');
                     data = await this.fetchUserCollected(userId);
+                    console.log('✅ 收藏数据获取完成:', data?.templates?.length || 0, '条');
                     this.renderTemplateCards(data.templates || [], tabContent);
                     break;
+
                 default:
                     throw new Error('未知的标签页类型');
             }
 
-            console.log('Loaded data:', data);
+            // 3. 隐藏加载状态
+            this.hideLoadingProgress();
+            
+            const duration = this.performanceMonitor.end('loadUserData');
+            this.performanceMonitor.record('dataLoadSuccess', true);
+            
+            console.log(`✅ 数据加载完成: ${tabType}, 耗时: ${duration?.duration || 0}ms`);
             
         } catch (error) {
-            console.error('Failed to load user data:', error);
+            console.error('❌ 数据加载失败:', error);
+            this.performanceMonitor.end('loadUserData');
+            this.performanceMonitor.record('dataLoadSuccess', false);
             
-            // 如果是认证错误，可能用户已登出
+            // 隐藏加载状态
+            this.hideLoadingProgress();
+            
+            // 处理特定错误类型
             if (error.message.includes('401') || 
                 error.message.includes('未授权') || 
                 error.message.includes('Unauthorized') ||
                 error.message.includes('获取用户提示词失败') ||
                 error.message.includes('获取用户点赞提示词失败')) {
-                console.log('Authentication error, user might be logged out');
+                console.log('🔑 认证错误，用户可能已登出');
                 this.handleLogout();
                 return;
             }
             
-            // 特殊处理收藏功能的错误
-            if (tabType === 'collected' && error.message.includes('获取模板数据失败')) {
-                tabContent.innerHTML = `
-                    <div class="error">
-                        <div class="error-icon">⚠️</div>
-                        <h3 class="error-title">飞书API配置问题</h3>
-                        <p class="error-description">
-                            当前飞书多维表格的认证配置存在问题，可能是：
-                        </p>
-                        <ul class="error-list">
-                            <li>飞书应用的访问令牌已过期</li>
-                            <li>飞书多维表格的配置信息不正确</li>
-                            <li>飞书应用权限设置有问题</li>
-                        </ul>
-                        <div class="error-actions">
-                            <button onclick="window.prompterhubSidepanel.loadUserData('${tabType}')" class="retry-btn primary">
-                                🔄 重试加载
-                            </button>
-                            <button onclick="window.prompterhubSidepanel.openFeishuDebug()" class="retry-btn secondary">
-                                🔍 查看调试信息
-                            </button>
-                            <a href="${this.baseUrl}/best-practices" target="_blank" class="retry-btn secondary">
-                                🌐 访问网站
-                            </a>
-                        </div>
-                        <details class="error-details">
-                            <summary>技术详情</summary>
-                            <p><strong>错误信息:</strong> ${error.message}</p>
-                            <p><strong>用户ID:</strong> ${this.currentUser?.id || 'Unknown'}</p>
-                            <p><strong>用户昵称:</strong> ${this.currentUser?.nickname || 'Unknown'}</p>
-                            <p><strong>API端点:</strong> ${this.apiUrl}</p>
-                        </details>
+            // 显示错误界面
+            this.showErrorState(tabContent, error, tabType);
+        }
+    }
+
+    // 显示渐进式加载状态
+    showProgressiveLoading(container, tabType) {
+        const loadingHtml = `
+            <div class="simple-loading" id="progressiveLoading">
+                <div class="loading-content">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
                     </div>
-                `;
-            } else {
-                // 其他错误的通用处理
-                tabContent.innerHTML = `
-                    <div class="error">
-                        <p>加载失败: ${error.message}</p>
-                        <p class="error-details">用户: ${this.currentUser?.nickname || 'Unknown'}</p>
-                        <p class="error-details">Tab: ${tabType}</p>
-                        <button onclick="window.prompterhubSidepanel.loadUserData('${tabType}')" class="retry-btn">
-                            重试
+                    <div class="loading-text">正在加载中...</div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = loadingHtml;
+    }
+
+    // 更新加载进度
+    updateLoadingProgress(message) {
+        // 简化版本不需要更新进度信息
+        console.log('加载进度:', message);
+    }
+
+    // 更新加载步骤状态
+    updateLoadingStep(stepNumber, status) {
+        // 简化版本不需要步骤状态
+        console.log('加载步骤:', stepNumber, status);
+    }
+
+    // 隐藏加载进度
+    hideLoadingProgress() {
+        const loadingElement = document.getElementById('progressiveLoading');
+        if (loadingElement) {
+            // 直接淡出移除
+            loadingElement.style.opacity = '0';
+            setTimeout(() => {
+                if (loadingElement.parentNode) {
+                    loadingElement.remove();
+                }
+            }, 300);
+        }
+    }
+
+    // 获取标签页显示名称
+    getTabDisplayName(tabType) {
+        const displayNames = {
+            'created': '创作内容',
+            'liked': '点赞内容', 
+            'collected': '收藏内容'
+        };
+        return displayNames[tabType] || '内容';
+    }
+
+    // 显示错误状态
+    showErrorState(container, error, tabType) {
+        // 特殊处理收藏功能的错误
+        if (tabType === 'collected' && error.message.includes('获取模板数据失败')) {
+            container.innerHTML = `
+                <div class="error">
+                    <div class="error-icon">⚠️</div>
+                    <h3 class="error-title">飞书API配置问题</h3>
+                    <p class="error-description">
+                        当前飞书多维表格的认证配置存在问题，可能是：
+                    </p>
+                    <ul class="error-list">
+                        <li>飞书应用的访问令牌已过期</li>
+                        <li>飞书多维表格的配置信息不正确</li>
+                        <li>飞书应用权限设置有问题</li>
+                    </ul>
+                    <div class="error-actions">
+                        <button onclick="window.prompterhubSidepanel.loadUserData('${tabType}')" class="retry-btn primary">
+                            🔄 重试加载
                         </button>
-                        <button onclick="window.prompterhubSidepanel.checkAuthStatus(true)" class="retry-btn">
-                            检查登录状态
+                        <button onclick="window.prompterhubSidepanel.openFeishuDebug()" class="retry-btn secondary">
+                            🔍 查看调试信息
+                        </button>
+                        <a href="${this.baseUrl}/best-practices" target="_blank" class="retry-btn secondary">
+                            🌐 访问网站
+                        </a>
+                    </div>
+                    <details class="error-details">
+                        <summary>技术详情</summary>
+                        <p><strong>错误信息:</strong> ${error.message}</p>
+                        <p><strong>用户ID:</strong> ${this.currentUser?.id || 'Unknown'}</p>
+                        <p><strong>用户昵称:</strong> ${this.currentUser?.nickname || 'Unknown'}</p>
+                        <p><strong>API端点:</strong> ${this.apiUrl}</p>
+                    </details>
+                </div>
+            `;
+        } else {
+            // 其他错误的通用处理
+            container.innerHTML = `
+                <div class="error">
+                    <div class="error-icon">❌</div>
+                    <h3 class="error-title">加载失败</h3>
+                    <p class="error-description">${error.message}</p>
+                    <p class="error-details">用户: ${this.currentUser?.nickname || 'Unknown'}</p>
+                    <p class="error-details">类型: ${tabType}</p>
+                    <div class="error-actions">
+                        <button onclick="window.prompterhubSidepanel.loadUserData('${tabType}')" class="retry-btn primary">
+                            🔄 重试
+                        </button>
+                        <button onclick="window.prompterhubSidepanel.checkAuthStatus(true)" class="retry-btn secondary">
+                            🔑 检查登录状态
                         </button>
                     </div>
-                `;
-            }
+                </div>
+            `;
         }
     }
 
@@ -708,6 +1053,52 @@ class PrompterHubSidepanel {
         return await response.json();
     }
 
+    // 优化版本的创作内容获取
+    async fetchUserCreated(username) {
+        const startTime = Date.now();
+        this.performanceMonitor.start('fetchUserCreated');
+        
+        console.log('🚀 开始获取用户创作数据 (优化版本)');
+        
+        try {
+            // 1. 检查缓存
+            const cacheKey = this.cacheManager.generateKey('created', username);
+            const cachedData = await this.cacheManager.get(cacheKey);
+            if (cachedData) {
+                this.performanceMonitor.record('cacheHit', true);
+                console.log('✅ 使用缓存数据，耗时:', Date.now() - startTime, 'ms');
+                return cachedData;
+            }
+
+            // 2. 发起API请求
+            const url = `${this.apiUrl}/users/${encodeURIComponent(username)}/prompts?page=1&limit=20`;
+            console.log('📡 获取创作内容:', url);
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`获取创作内容失败: ${response.status} - ${errorText}`);
+            }
+            
+            const result = await response.json();
+            
+            // 3. 缓存结果
+            await this.cacheManager.set(cacheKey, result, 5 * 60 * 1000); // 5分钟缓存
+
+            const totalTime = Date.now() - startTime;
+            this.performanceMonitor.end('fetchUserCreated');
+            this.performanceMonitor.record('promptsCount', result?.prompts?.length || 0);
+            
+            console.log(`✅ 创作数据获取完成: ${result?.prompts?.length || 0}个内容, 耗时: ${totalTime}ms`);
+            return result;
+
+        } catch (error) {
+            this.performanceMonitor.end('fetchUserCreated');
+            console.error('❌ 获取创作内容失败:', error);
+            throw error;
+        }
+    }
+
     async fetchUserLiked(username, userId) {
         console.log('Fetching user liked for username:', username, 'userId:', userId);
         const url = `${this.apiUrl}/users/${encodeURIComponent(username)}/liked?page=1&limit=20&userId=${encodeURIComponent(userId)}`;
@@ -722,129 +1113,270 @@ class PrompterHubSidepanel {
         return await response.json();
     }
 
-    async fetchUserCollected(userId) {
-        console.log('Fetching user collected for userId:', userId);
+    // 优化版本的点赞内容获取
+    async fetchUserLikedOptimized(username, userId) {
+        const startTime = Date.now();
+        this.performanceMonitor.start('fetchUserLiked');
+        
+        console.log('🚀 开始获取用户点赞数据 (优化版本)');
         
         try {
-            // 第一步：获取用户收藏的模板ID列表
-            const starredUrl = `${this.apiUrl}/user/starred-templates?userId=${encodeURIComponent(userId)}`;
-            console.log('获取收藏ID列表 API URL:', starredUrl);
+            // 1. 检查缓存
+            const cacheKey = this.cacheManager.generateKey('liked', `${username}_${userId}`);
+            const cachedData = await this.cacheManager.get(cacheKey);
+            if (cachedData) {
+                this.performanceMonitor.record('cacheHit', true);
+                console.log('✅ 使用缓存数据，耗时:', Date.now() - startTime, 'ms');
+                return cachedData;
+            }
+
+            // 2. 发起API请求
+            const url = `${this.apiUrl}/users/${encodeURIComponent(username)}/liked?page=1&limit=20&userId=${encodeURIComponent(userId)}`;
+            console.log('📡 获取点赞内容:', url);
             
-            const starredResponse = await fetch(starredUrl);
-            if (!starredResponse.ok) {
-                const errorText = await starredResponse.text();
-                console.error('获取收藏ID列表失败:', starredResponse.status, errorText);
-                throw new Error(`获取收藏列表失败: ${starredResponse.status} - ${errorText}`);
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`获取点赞内容失败: ${response.status} - ${errorText}`);
             }
             
-            const starredData = await starredResponse.json();
-            console.log('收藏数据:', starredData);
+            const result = await response.json();
             
-            if (!starredData.success || !starredData.templateIds || starredData.templateIds.length === 0) {
-                console.log('用户没有收藏任何模板');
-                return { templates: [] };
-            }
+            // 3. 缓存结果
+            await this.cacheManager.set(cacheKey, result, 5 * 60 * 1000); // 5分钟缓存
 
-            // 第二步：尝试多种方式获取模板数据
-            let templatesData = null;
-            let lastError = null;
-
-            // 方法1：使用主要的模板API
-            try {
-                const templatesUrl = `${this.apiUrl}/templates`;
-                console.log('尝试方法1 - 获取所有模板 API URL:', templatesUrl);
-                
-                const templatesResponse = await fetch(templatesUrl);
-                if (templatesResponse.ok) {
-                    templatesData = await templatesResponse.json();
-                    console.log('方法1成功，获取到模板数据:', templatesData);
-                } else {
-                    const errorText = await templatesResponse.text();
-                    lastError = `方法1失败: ${templatesResponse.status} - ${errorText}`;
-                    console.error(lastError);
-                }
-            } catch (error) {
-                lastError = `方法1异常: ${error.message}`;
-                console.error(lastError);
-            }
-
-            // 方法2：使用飞书多维表格API
-            if (!templatesData) {
-                try {
-                    const feishuUrl = `${this.apiUrl}/feishu-bitable`;
-                    console.log('尝试方法2 - 飞书多维表格 API URL:', feishuUrl);
-                    
-                    const feishuResponse = await fetch(feishuUrl);
-                    if (feishuResponse.ok) {
-                        const feishuData = await feishuResponse.json();
-                        if (feishuData.success && feishuData.records) {
-                            // 转换飞书数据格式
-                            templatesData = {
-                                records: feishuData.records.map(record => ({
-                                    id: record.record_id,
-                                    record_id: record.record_id,
-                                    title: record.fields?.['name'] || record.fields?.['Name'] || '未命名模板',
-                                    content: record.fields?.['Prompt'] || record.fields?.['prompt'] || '',
-                                    author: record.fields?.['creator'] || '匿名',
-                                    tags: this.parseFeishuTags(record.fields?.['tag'] || record.fields?.['tags']),
-                                    type: record.fields?.['type'] || 'text',
-                                    stars: Math.floor(Math.random() * 100),
-                                    views: Math.floor(Math.random() * 1000),
-                                    createdAt: record.fields?.['date'] || new Date().toLocaleDateString('zh-CN')
-                                }))
-                            };
-                            console.log('方法2成功，转换后的模板数据:', templatesData);
-                        } else {
-                            lastError = `方法2失败: 飞书API返回格式错误 - ${JSON.stringify(feishuData)}`;
-                            console.error(lastError);
-                        }
-                    } else {
-                        const errorText = await feishuResponse.text();
-                        lastError = `方法2失败: ${feishuResponse.status} - ${errorText}`;
-                        console.error(lastError);
-                    }
-                } catch (error) {
-                    lastError = `方法2异常: ${error.message}`;
-                    console.error(lastError);
-                }
-            }
-
-            // 方法3：如果以上都失败，使用缓存数据或创建模拟数据
-            if (!templatesData) {
-                console.warn('所有获取模板数据的方法都失败，使用备用方案');
-                console.warn('最后的错误:', lastError);
-                
-                // 创建基于收藏ID的模拟数据
-                const mockTemplates = starredData.templateIds.map((templateId, index) => ({
-                    id: templateId,
-                    record_id: templateId,
-                    title: `收藏模板 ${index + 1}`,
-                    content: '由于服务器配置问题，暂时无法获取完整模板内容。请稍后重试或访问网站查看。',
-                    author: '未知作者',
-                    tags: ['模板'],
-                    type: 'text',
-                    stars: Math.floor(Math.random() * 50),
-                    views: Math.floor(Math.random() * 500),
-                    createdAt: new Date().toLocaleDateString('zh-CN')
-                }));
-
-                templatesData = { records: mockTemplates };
-                console.log('使用模拟数据:', templatesData);
-            }
-
-            // 第三步：从所有模板中筛选出用户收藏的模板
-            const allTemplates = templatesData.records || templatesData.templates || [];
-            const starredTemplateIds = new Set(starredData.templateIds);
+            const totalTime = Date.now() - startTime;
+            this.performanceMonitor.end('fetchUserLiked');
+            this.performanceMonitor.record('likedCount', result?.prompts?.length || 0);
             
-            const userStarredTemplates = allTemplates.filter(template => {
-                const templateId = template.id || template.record_id;
-                return starredTemplateIds.has(templateId);
-            }).map(template => {
-                // 转换数据格式以匹配插件的期望格式
-                const templateId = template.id || template.record_id;
+            console.log(`✅ 点赞数据获取完成: ${result?.prompts?.length || 0}个内容, 耗时: ${totalTime}ms`);
+            return result;
+
+        } catch (error) {
+            this.performanceMonitor.end('fetchUserLiked');
+            console.error('❌ 获取点赞内容失败:', error);
+            throw error;
+        }
+    }
+
+    async fetchUserCollected(userId) {
+        const startTime = Date.now();
+        this.performanceMonitor.start('fetchUserCollected');
+        
+        console.log('🚀 开始获取用户收藏数据 (优化版本)');
+        
+        try {
+            // 1. 检查缓存
+            const cacheKey = this.cacheManager.generateKey('collected', userId);
+            const cachedData = await this.cacheManager.get(cacheKey);
+            if (cachedData) {
+                this.performanceMonitor.record('cacheHit', true);
+                console.log('✅ 使用缓存数据，耗时:', Date.now() - startTime, 'ms');
+                return cachedData;
+            }
+
+            // 2. 并行获取数据
+            const collectionsPromise = this.fetchUserStarredIds(userId);
+            const templatesPromise = this.fetchAllTemplatesParallel();
+            
+            console.log('📡 并行请求: 收藏ID列表 & 模板数据');
+            
+            // 等待两个关键数据
+            const [starredData, templatesData] = await Promise.all([
+                collectionsPromise,
+                templatesPromise
+            ]);
+
+            // 3. 数据校验
+            if (!starredData.success || !starredData.templateIds?.length) {
+                console.log('📋 用户没有收藏任何模板');
+                const emptyResult = { templates: [] };
+                await this.cacheManager.set(cacheKey, emptyResult, 60000); // 1分钟缓存
+                return emptyResult;
+            }
+
+            // 4. 高效数据处理
+            const userStarredTemplates = this.processCollectedTemplates(
+                starredData, 
+                templatesData
+            );
+
+            // 5. 缓存结果
+            const result = { templates: userStarredTemplates };
+            await this.cacheManager.set(cacheKey, result, 10 * 60 * 1000); // 10分钟缓存
+
+            const totalTime = Date.now() - startTime;
+            this.performanceMonitor.end('fetchUserCollected');
+            this.performanceMonitor.record('templatesCount', userStarredTemplates.length);
+            
+            console.log(`✅ 收藏数据获取完成: ${userStarredTemplates.length}个模板, 耗时: ${totalTime}ms`);
+            return result;
+
+        } catch (error) {
+            this.performanceMonitor.end('fetchUserCollected');
+            console.error('❌ 获取收藏模板失败:', error);
+            throw error;
+        }
+    }
+
+    // 获取用户收藏ID列表
+    async fetchUserStarredIds(userId) {
+        const url = `${this.apiUrl}/user/starred-templates?userId=${encodeURIComponent(userId)}`;
+        console.log('📡 获取收藏ID列表:', url);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`获取收藏列表失败: ${response.status}`);
+        }
+        
+        return await response.json();
+    }
+
+    // 并行获取模板数据
+    async fetchAllTemplatesParallel() {
+        console.log('📡 并行获取模板数据...');
+        
+        // 创建并行请求
+        const requests = [
+            this.fetchTemplatesAPI1(), // 主要API
+            this.fetchTemplatesAPI2()  // 飞书API
+        ];
+
+        // 使用Promise.allSettled等待所有请求完成
+        const results = await Promise.allSettled(requests);
+        
+        // 选择第一个成功的结果
+        for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            if (result.status === 'fulfilled' && result.value) {
+                const source = i === 0 ? '主要API' : '飞书API';
+                console.log(`✅ 使用${source}数据`);
+                return result.value;
+            }
+        }
+
+        // 如果所有API都失败，记录错误信息
+        const errors = results
+            .filter(r => r.status === 'rejected')
+            .map(r => r.reason?.message || r.reason)
+            .join('; ');
+        
+        console.warn('⚠️ 所有API请求失败，使用空数据:', errors);
+        return { records: [] };
+    }
+
+    // 主要模板API
+    async fetchTemplatesAPI1() {
+        try {
+            const response = await fetch(`${this.apiUrl}/templates`);
+            if (!response.ok) {
+                throw new Error(`主要API失败: ${response.status}`);
+            }
+            
+            const rawData = await response.json();
+            return this.standardizeTemplateData(rawData, 'api');
+        } catch (error) {
+            console.log('❌ 主要API失败:', error.message);
+            throw error;
+        }
+    }
+
+    // 飞书模板API
+    async fetchTemplatesAPI2() {
+        try {
+            const response = await fetch(`${this.apiUrl}/feishu-bitable`);
+            if (!response.ok) {
+                throw new Error(`飞书API失败: ${response.status}`);
+            }
+            
+            const feishuData = await response.json();
+            if (!feishuData.success || !feishuData.records) {
+                throw new Error('飞书API返回格式错误');
+            }
+            
+            return this.standardizeFeishuData(feishuData);
+        } catch (error) {
+            console.log('❌ 飞书API失败:', error.message);
+            throw error;
+        }
+    }
+
+    // 标准化模板数据格式
+    standardizeTemplateData(rawData, source) {
+        if (rawData.records) {
+            return rawData; // 已经是标准格式
+        }
+        
+        let templates = [];
+        if (rawData.templates) {
+            templates = rawData.templates;
+        } else if (Array.isArray(rawData)) {
+            templates = rawData;
+        }
+
+        return {
+            records: templates.map(template => ({
+                id: template.id || template._id,
+                record_id: template.id || template._id,
+                title: template.title || template.name || '未命名模板',
+                content: template.content || template.prompt || '',
+                author: template.author || template.creator || '匿名',
+                tags: Array.isArray(template.tags) ? template.tags : [],
+                type: template.type || 'text',
+                stars: parseInt(template.stars || template.likes || 0),
+                views: parseInt(template.views || 0),
+                createdAt: template.createdAt || template.created_at || new Date().toLocaleDateString('zh-CN'),
+                preview: template.preview || template.description,
+                _dataSource: source,
+                _hasStats: !!(template.stars || template.likes || template.views)
+            }))
+        };
+    }
+
+    // 标准化飞书数据格式
+    standardizeFeishuData(feishuData) {
+        return {
+            records: feishuData.records.map(record => ({
+                id: record.record_id,
+                record_id: record.record_id,
+                title: record.fields?.['name'] || record.fields?.['Name'] || '未命名模板',
+                content: record.fields?.['Prompt'] || record.fields?.['prompt'] || '',
+                author: record.fields?.['creator'] || '匿名',
+                tags: this.parseFeishuTags(record.fields?.['tag'] || record.fields?.['tags']),
+                type: record.fields?.['type'] || 'text',
+                stars: 0, // 飞书数据中没有统计信息
+                views: 0,
+                createdAt: record.fields?.['Date'] ? 
+                    new Date(record.fields['Date']).toLocaleDateString('zh-CN') : 
+                    new Date().toLocaleDateString('zh-CN'),
+                _dataSource: 'feishu',
+                _hasStats: false
+            }))
+        };
+    }
+
+    // 高效处理收藏模板数据
+    processCollectedTemplates(starredData, templatesData) {
+        const allTemplates = templatesData.records || [];
+        const starredTemplateIds = new Set(starredData.templateIds);
+        
+        console.log(`🔍 筛选收藏模板: ${starredTemplateIds.size}个收藏ID, ${allTemplates.length}个总模板`);
+        
+        // 使用Map优化查找性能
+        const templateMap = new Map();
+        allTemplates.forEach(template => {
+            const id = template.id || template.record_id;
+            templateMap.set(id, template);
+        });
+
+        // 高效筛选和转换
+        const userStarredTemplates = [];
+        for (const templateId of starredTemplateIds) {
+            const template = templateMap.get(templateId);
+            if (template) {
                 const starInfo = starredData.templates?.find(s => s.template_id === templateId);
                 
-                return {
+                userStarredTemplates.push({
                     id: templateId,
                     title: template.title || '未命名模板',
                     content: template.content || template.preview || '',
@@ -853,29 +1385,27 @@ class PrompterHubSidepanel {
                     author: template.author || '匿名',
                     likes: template.stars || 0,
                     views: template.views || 0,
-                    comments: 0, // 模板没有评论功能
+                    comments: 0,
                     stars: template.stars || 0,
                     tags: Array.isArray(template.tags) ? template.tags : [],
-                    source: 'import', // 模板都是导入的
+                    source: 'import',
                     type: template.type || 'text',
                     createdAt: template.createdAt || new Date().toLocaleDateString('zh-CN'),
                     starredAt: starInfo?.created_at || new Date().toISOString(),
-                    url: template.url
-                };
-            });
-
-            // 按收藏时间排序（最新收藏的在前）
-            userStarredTemplates.sort((a, b) => {
-                return new Date(b.starredAt).getTime() - new Date(a.starredAt).getTime();
-            });
-
-            console.log('用户收藏的模板:', userStarredTemplates);
-            return { templates: userStarredTemplates };
-
-        } catch (error) {
-            console.error('获取收藏模板失败:', error);
-            throw error;
+                    url: template.url,
+                    _dataSource: template._dataSource || 'unknown',
+                    _hasStats: template._hasStats || false
+                });
+            }
         }
+
+        // 按收藏时间排序
+        userStarredTemplates.sort((a, b) => {
+            return new Date(b.starredAt).getTime() - new Date(a.starredAt).getTime();
+        });
+
+        console.log(`✅ 收藏模板处理完成: ${userStarredTemplates.length}个`);
+        return userStarredTemplates;
     }
 
     // 解析飞书标签字段
@@ -1111,8 +1641,10 @@ class PrompterHubSidepanel {
         // Bind click events to cards
         container.querySelectorAll('.prompt-card').forEach(card => {
             card.addEventListener('click', () => {
-                const itemData = JSON.parse(card.dataset.item);
-                this.showPromptDetail(itemData);
+                const itemData = this.decodeItemData(card.dataset.item);
+                if (itemData) {
+                    this.showPromptDetail(itemData);
+                }
             });
 
             // Bind copy button events
@@ -1120,8 +1652,10 @@ class PrompterHubSidepanel {
             if (copyBtn) {
                 copyBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const itemData = JSON.parse(card.dataset.item);
-                    this.handleCardCopy(itemData, copyBtn);
+                    const itemData = this.decodeItemData(card.dataset.item);
+                    if (itemData) {
+                        this.handleCardCopy(itemData, copyBtn);
+                    }
                 });
             }
 
@@ -1130,15 +1664,18 @@ class PrompterHubSidepanel {
             if (likeBtn) {
                 likeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const itemData = JSON.parse(card.dataset.item);
-                    this.handleLike(itemData.id, card);
+                    const itemData = this.decodeItemData(card.dataset.item);
+                    if (itemData) {
+                        this.handleLike(itemData.id, card);
+                    }
                 });
             }
         });
     }
 
     renderTemplateCards(items, container) {
-        console.log('Rendering template cards:', items.length);
+        console.log('🎨 渲染模板卡片 (优化版本):', items.length);
+        this.performanceMonitor.start('renderTemplateCards');
         
         // 添加收藏页面顶部链接
         const topLinksHtml = `
@@ -1163,37 +1700,56 @@ class PrompterHubSidepanel {
             return;
         }
 
-        // 收藏的模板使用增强的卡片样式，因为现在包含了完整的信息
+        // 使用DocumentFragment优化DOM操作
+        const fragment = document.createDocumentFragment();
+        const gridDiv = document.createElement('div');
+        gridDiv.className = 'card-grid';
+        
+        // 批量创建卡片HTML
         const cardsHtml = items.map(item => this.createCollectedTemplateCardHtml(item)).join('');
-        container.innerHTML = `${topLinksHtml}<div class="card-grid">${cardsHtml}</div>`;
+        gridDiv.innerHTML = cardsHtml;
+        fragment.appendChild(gridDiv);
+        
+        // 一次性更新DOM
+        container.innerHTML = topLinksHtml;
+        container.appendChild(fragment);
 
-        // Bind click events to template cards
-        container.querySelectorAll('.template-card, .prompt-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const itemData = JSON.parse(card.dataset.item);
+        // 使用事件委托优化事件绑定
+        this.bindTemplateCardEvents(container);
+        
+        this.performanceMonitor.end('renderTemplateCards');
+        this.performanceMonitor.record('cardsRendered', items.length);
+    }
+
+    // 优化的事件绑定 - 使用事件委托
+    bindTemplateCardEvents(container) {
+        // 移除之前的事件监听器（如果存在）
+        container.removeEventListener('click', this.handleTemplateCardClick);
+        
+        // 使用事件委托处理所有卡片事件
+        this.handleTemplateCardClick = (event) => {
+            const target = event.target;
+            const card = target.closest('.template-card, .prompt-card');
+            
+            if (!card) return;
+            
+            const itemData = this.decodeItemData(card.dataset.item);
+            if (!itemData) return;
+            
+            // 处理不同的点击事件
+            if (target.closest('.copy-btn')) {
+                event.stopPropagation();
+                this.handleCardCopy(itemData, target.closest('.copy-btn'));
+            } else if (target.closest('.star-btn')) {
+                event.stopPropagation();
+                this.handleTemplateUnstar(itemData.id, card);
+            } else {
+                // 点击卡片其他区域 - 显示详情
                 this.showPromptDetail(itemData);
-            });
-
-            // 绑定复制按钮点击事件（如果存在）
-            const copyBtn = card.querySelector('.copy-btn');
-            if (copyBtn) {
-                copyBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const itemData = JSON.parse(card.dataset.item);
-                    this.handleCardCopy(itemData, copyBtn);
-                });
             }
-
-            // 绑定收藏按钮点击事件（如果存在）
-            const starBtn = card.querySelector('.star-btn');
-            if (starBtn) {
-                starBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const itemData = JSON.parse(card.dataset.item);
-                    this.handleTemplateUnstar(itemData.id, card);
-                });
-            }
-        });
+        };
+        
+        container.addEventListener('click', this.handleTemplateCardClick);
     }
 
     createPromptCardHtml(item) {
@@ -1237,7 +1793,7 @@ class PrompterHubSidepanel {
             '<span class="source-badge ai">AI</span>';
 
         return `
-            <div class="prompt-card" data-item='${JSON.stringify(item)}'>
+            <div class="prompt-card" data-item='${this.encodeItemData(item)}'>
                 <div class="card-header">
                     <div class="card-title-row">
                         <h3 class="card-title" title="${title}">${title}</h3>
@@ -1256,8 +1812,8 @@ class PrompterHubSidepanel {
                     <div class="card-meta-row">
                         <span class="card-author">${author} · ${item.createdAt || new Date().toLocaleDateString('zh-CN')}</span>
                         <div class="card-stats">
-                            <button class="stat-btn copy-btn" title="复制提示词">
-                                <span class="stat-text">复制</span>
+                            <button class="stat-btn copy-btn primary" title="复制提示词">
+                                <span class="stat-text large">复制</span>
                             </button>
                             <button class="stat-btn like-btn ${this.currentTab === 'liked' ? 'active' : ''}" title="点赞">
                                 <span class="stat-icon">${this.currentTab === 'liked' ? '❤️' : '🤍'}</span>
@@ -1295,7 +1851,7 @@ class PrompterHubSidepanel {
         const moreTagsHtml = tags.length > 2 ? `<span class="tag-badge more-tags">+${tags.length - 2}</span>` : '';
 
         return `
-            <div class="template-card" data-item='${JSON.stringify(item)}'>
+            <div class="template-card" data-item='${this.encodeItemData(item)}'>
                 <div class="card-header">
                     <div class="card-title-row">
                         <h3 class="card-title" title="${title}">${title}</h3>
@@ -1337,6 +1893,7 @@ class PrompterHubSidepanel {
         const author = this.escapeHtml(item.author || '匿名');
         const stars = item.stars || 0;
         const views = item.views || 0;
+        const hasStats = item._hasStats || false; // 检查是否有统计数据
         const tags = item.tags || [];
         const type = item.type || 'text';
         const starredAt = item.starredAt ? new Date(item.starredAt).toLocaleDateString('zh-CN') : '';
@@ -1358,8 +1915,16 @@ class PrompterHubSidepanel {
                         type === 'html' ? '💻' : 
                         type === '图片' ? '🖼️' : '📝';
 
+        // 简化统计显示，不显示收藏和浏览图标
+        const statsHtml = `
+            <button class="stat-btn star-btn active" title="取消收藏">
+                <span class="stat-icon">⭐</span>
+                <span class="stat-count">已收藏</span>
+            </button>
+        `;
+
         return `
-            <div class="prompt-card template-card" data-item='${JSON.stringify(item)}'>
+            <div class="prompt-card template-card" data-item='${this.encodeItemData(item)}'>
                 <div class="card-header">
                     <div class="card-title-row">
                         <h3 class="card-title" title="${title}">${title}</h3>
@@ -1385,17 +1950,10 @@ class PrompterHubSidepanel {
                     <div class="card-meta-row">
                         <span class="card-author">${author}</span>
                         <div class="card-stats">
-                            <button class="stat-btn copy-btn" title="复制模板内容">
-                                <span class="stat-text">复制</span>
+                            <button class="stat-btn copy-btn primary" title="复制模板内容">
+                                <span class="stat-text large">复制</span>
                             </button>
-                            <button class="stat-btn star-btn active" title="取消收藏">
-                                <span class="stat-icon">⭐</span>
-                                <span class="stat-count">${stars}</span>
-                            </button>
-                            <div class="stat-item" title="查看">
-                                <span class="stat-icon">👁️</span>
-                                <span class="stat-count">${views}</span>
-                            </div>
+                            ${statsHtml}
                         </div>
                     </div>
                 </div>
@@ -1464,7 +2022,7 @@ class PrompterHubSidepanel {
             // 更新按钮状态
             const originalText = buttonElement.querySelector('.stat-text').textContent;
             
-            buttonElement.querySelector('.stat-text').textContent = '⏳ 复制中';
+            buttonElement.querySelector('.stat-text').textContent = '复制中';
             buttonElement.disabled = true;
 
             // 尝试使用现代 Clipboard API
@@ -1476,7 +2034,7 @@ class PrompterHubSidepanel {
             }
 
             // 恢复按钮状态并显示成功提示
-            buttonElement.querySelector('.stat-text').textContent = '✅ 已复制';
+            buttonElement.querySelector('.stat-text').textContent = '已复制';
             
             this.showToast('提示词已复制到剪贴板', 'success', 2000);
 
@@ -1490,7 +2048,7 @@ class PrompterHubSidepanel {
             console.error('复制失败:', error);
             
             // 恢复按钮状态
-            buttonElement.querySelector('.stat-text').textContent = '❌ 失败';
+            buttonElement.querySelector('.stat-text').textContent = '失败';
             buttonElement.disabled = false;
             
             this.showToast('复制失败，请稍后重试', 'error');
@@ -1569,8 +2127,8 @@ class PrompterHubSidepanel {
             const starBtn = cardElement.querySelector('.star-btn');
             if (starBtn) {
                 starBtn.disabled = false;
-                const itemData = JSON.parse(cardElement.dataset.item);
-                const stars = itemData.stars || 0;
+                const itemData = this.decodeItemData(cardElement.dataset.item);
+                const stars = itemData?.stars || 0;
                 starBtn.innerHTML = `<span class="stat-icon">⭐</span><span class="stat-count">${stars}</span>`;
             }
             
@@ -1616,6 +2174,12 @@ class PrompterHubSidepanel {
         
         if (tabContent) tabContent.style.display = 'none';
         if (detailView) detailView.style.display = 'flex';
+
+        // 隐藏置顶按钮（详情页面不显示）
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        if (scrollToTopBtn) {
+            scrollToTopBtn.classList.remove('show');
+        }
     }
 
     // 隐藏详情视图，返回列表
@@ -1633,6 +2197,16 @@ class PrompterHubSidepanel {
         
         if (detailView) detailView.style.display = 'none';
         if (tabContent) tabContent.style.display = 'block';
+
+        // 恢复置顶按钮的显示状态（如果需要的话）
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        if (scrollToTopBtn && this.currentUser) {
+            // 检查当前滚动位置，决定是否显示按钮
+            const activeTabContent = document.querySelector('.tab-content');
+            if (activeTabContent && activeTabContent.scrollTop > 100) {
+                scrollToTopBtn.classList.add('show');
+            }
+        }
     }
 
     // 填充详情视图内容
@@ -1882,19 +2456,6 @@ ${item.originalText && item.originalText !== (item.fullContent || item.preview) 
         }
     }
 
-    // 访问提示词页面
-    async visitPromptPage() {
-        if (!this.currentDetailItem) return;
-
-        try {
-            const url = `${this.baseUrl}/p/${this.currentDetailItem.id}`;
-            console.log('Opening prompt page:', url);
-            await chrome.tabs.create({ url });
-        } catch (error) {
-            console.error('Failed to open prompt page:', error);
-        }
-    }
-
     // 显示复制成功提示
     showCopySuccess(message) {
         this.showToast(message, 'success', 2000);
@@ -1918,6 +2479,30 @@ ${item.originalText && item.originalText !== (item.fullContent || item.preview) 
         } catch (error) {
             console.error('Fallback copy failed:', error);
             this.showToast('复制失败，请手动选择内容', 'error');
+        }
+    }
+
+    // 安全地将对象编码为HTML属性值
+    encodeItemData(item) {
+        try {
+            const jsonString = JSON.stringify(item);
+            // 使用更简单的Base64编码方式
+            return btoa(encodeURIComponent(jsonString));
+        } catch (error) {
+            console.error('编码项目数据失败:', error);
+            return '';
+        }
+    }
+
+    // 安全地从HTML属性值解码对象
+    decodeItemData(encodedData) {
+        try {
+            // 使用更简单的Base64解码方式
+            const jsonString = decodeURIComponent(atob(encodedData));
+            return JSON.parse(jsonString);
+        } catch (error) {
+            console.error('解码项目数据失败:', error);
+            return null;
         }
     }
 
