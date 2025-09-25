@@ -6,10 +6,18 @@
   "permissions": [
     "activeTab",
     "storage",
-    "sidePanel"
+    "sidePanel",
+    "scripting"
   ],
   "host_permissions": [
-    "https://www.prompterhub.cn/*"
+    "https://www.prompterhub.cn/*",
+    "https://chat.deepseek.com/*",
+    "https://www.doubao.com/*",
+    "https://www.kimi.com/*",
+    "https://jimeng.jianying.com/*",
+    "https://chatglm.cn/*",
+    "https://gemini.google.com/*",
+    "https://grok.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -18,6 +26,20 @@
     {
       "matches": ["https://www.prompterhub.cn/*"],
       "js": ["content.js"]
+    },
+    {
+      "matches": [
+        "https://chat.deepseek.com/*",
+        "https://www.doubao.com/*",
+        "https://www.kimi.com/*",
+        "https://jimeng.jianying.com/*",
+        "https://chatglm.cn/*",
+        "https://gemini.google.com/*",
+        "https://grok.com/*"
+      ],
+      "js": ["ai-sites-content.js"],
+      "run_at": "document_end",
+      "all_frames": false
     }
   ],
   "side_panel": {

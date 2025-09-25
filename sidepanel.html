@@ -1581,6 +1581,327 @@
             font-size: 13px;
             font-weight: 500;
         }
+
+        /* 首页样式 */
+        .homepage-container {
+            padding: 16px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .homepage-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .homepage-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0 0 8px 0;
+        }
+
+        .homepage-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .prompt-input-section {
+            margin-bottom: 24px;
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            resize: vertical;
+            transition: all 0.2s ease;
+            background: white;
+            color: #1e293b;
+            line-height: 1.5;
+        }
+
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .prompt-textarea::placeholder {
+            color: #94a3b8;
+        }
+
+        .models-section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0 0 12px 0;
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            padding: 4px 0;
+        }
+
+        .model-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            text-align: center;
+            min-height: 60px;
+        }
+
+        .model-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .model-card:hover .model-icon {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .model-icon-wrapper {
+            position: relative;
+            margin-bottom: 6px;
+        }
+
+        .model-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .model-card.selected .model-icon {
+            border-color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .model-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            width: 100%;
+        }
+
+        .model-name-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            justify-content: center;
+        }
+
+        .model-name {
+            font-size: 11px;
+            font-weight: 500;
+            color: #1e293b;
+            line-height: 1.2;
+        }
+
+        .model-check-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3b82f6;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .model-check-icon::after {
+            content: '✓';
+            color: white;
+            font-size: 8px;
+            font-weight: bold;
+        }
+
+        .model-card.selected .model-check-icon {
+            display: flex;
+        }
+
+        .model-desc {
+            display: none; /* 隐藏描述文字 */
+        }
+
+        .model-checkbox {
+            display: none; /* 隐藏原始复选框 */
+        }
+
+        /* 响应式设计 - 小屏幕时调整为3列 */
+        @media (max-width: 320px) {
+            .models-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .model-card {
+                padding: 3px;
+                min-height: 50px;
+            }
+            
+            .model-icon {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .model-name {
+                font-size: 10px;
+            }
+        }
+
+        .action-section {
+            text-align: center;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .auto-fill-toggle {
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 400;
+            color: #374151;
+            flex-wrap: wrap;
+        }
+
+        .toggle-label input[type="checkbox"] {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: relative;
+            width: 32px;
+            height: 18px;
+            background: #cbd5e1;
+            border-radius: 9px;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-label input:checked + .toggle-slider {
+            background: #3b82f6;
+        }
+
+        .toggle-label input:checked + .toggle-slider::before {
+            transform: translateX(14px);
+        }
+
+        .toggle-text {
+            font-weight: 500;
+            color: #1f2937;
+            white-space: nowrap;
+        }
+
+        .toggle-description {
+            font-size: 11px;
+            color: #6b7280;
+            margin-left: 4px;
+        }
+
+        .send-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 12px;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .send-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-text {
+            text-align: center;
+            width: 100%;
+        }
+
+        .selected-count {
+            display: none; /* 隐藏选择数量提示 */
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 360px) {
+            .homepage-container {
+                padding: 12px;
+            }
+            
+            .model-card {
+                padding: 10px;
+            }
+            
+            .model-icon {
+                width: 28px;
+                height: 28px;
+                margin-right: 10px;
+            }
+            
+            .send-btn {
+                padding: 8px 16px;
+                min-width: 120px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1659,7 +1980,10 @@
             <!-- Tab导航 -->
             <div class="user-tabs">
                 <div class="tab-nav">
-                    <button class="tab-item active" data-tab="created">
+                    <button class="tab-item active" data-tab="homepage">
+                        首页
+                    </button>
+                    <button class="tab-item" data-tab="created">
                         我的创作
                     </button>
                     <button class="tab-item" data-tab="liked">
@@ -1673,7 +1997,177 @@
 
             <!-- Tab内容 -->
             <div class="tab-content">
-                <div id="tabContent">
+                <!-- 首页内容 -->
+                <div id="homepageContent" class="homepage-container" style="display: block;">
+                    <div class="homepage-header">
+                        <h2 class="homepage-title">开启精彩对话</h2>
+                        <p class="homepage-subtitle">输入提示词，选择多个模型开启对话</p>
+                    </div>
+                    
+                    <div class="prompt-input-section">
+                        <textarea 
+                            id="promptInput" 
+                            class="prompt-textarea" 
+                            placeholder="请输入您的提示词或问题..."
+                            rows="4"
+                        ></textarea>
+                    </div>
+                    
+                    <div class="models-section">
+                        <h3 class="section-title">选择AI模型</h3>
+                        <div class="models-grid">
+                            <div class="model-card" data-url="https://chat.deepseek.com/" data-name="DeepSeek">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/deepseek-chat.jpg" alt="DeepSeek" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">DeepSeek</span>
+                                    </div>
+                                    <span class="model-desc">深度推理模型</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-deepseek" name="selectedModels" value="deepseek">
+                                </div>
+                            </div>
+                            
+                            <div class="model-card" data-url="https://www.doubao.com/chat/" data-name="豆包">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/doubao-logo-icon-white-bg.png" alt="豆包" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">豆包</span>
+                                    </div>
+                                    <span class="model-desc">字节跳动AI</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-doubao" name="selectedModels" value="doubao">
+                                </div>
+                            </div>
+                            
+                            <div class="model-card" data-url="https://www.kimi.com/" data-name="Kimi">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/kimi.png" alt="Kimi" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">Kimi</span>
+                                    </div>
+                                    <span class="model-desc">月之暗面AI</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-kimi" name="selectedModels" value="kimi">
+                                </div>
+                            </div>
+                            
+                            <div class="model-card" data-url="https://jimeng.jianying.com/ai-tool/home" data-name="即梦">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/即梦.jpg" alt="即梦" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">即梦</span>
+                                    </div>
+                                    <span class="model-desc">剪映AI工具</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-jimeng" name="selectedModels" value="jimeng">
+                                </div>
+                            </div>
+                            
+                            <div class="model-card" data-url="https://chatglm.cn/main/alltoolsdetail?lang=zh" data-name="智谱清言">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/zhipu.jpg" alt="智谱清言" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">智谱清言</span>
+                                    </div>
+                                    <span class="model-desc">清华智谱AI</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-zhipu" name="selectedModels" value="zhipu">
+                                </div>
+                            </div>
+                            
+                            <div class="model-card" data-url="https://gemini.google.com/app" data-name="Gemini">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/gemini.png" alt="Gemini" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">Gemini</span>
+                                    </div>
+                                    <span class="model-desc">Google AI</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-gemini" name="selectedModels" value="gemini">
+                                </div>
+                            </div>
+                            
+                            <div class="model-card" data-url="https://grok.com/" data-name="Grok">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/grok-seeklogo.png" alt="Grok" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">Grok</span>
+                                    </div>
+                                    <span class="model-desc">xAI 模型</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-grok" name="selectedModels" value="grok">
+                                </div>
+                            </div>
+                            
+                            <div class="model-card" data-url="https://chatgpt.com/" data-name="ChatGPT">
+                                <div class="model-icon-wrapper">
+                                    <img src="./public/images/gpt.png" alt="ChatGPT" class="model-icon">
+                                </div>
+                                <div class="model-info">
+                                    <div class="model-name-wrapper">
+                                        <div class="model-check-icon"></div>
+                                        <span class="model-name">ChatGPT</span>
+                                    </div>
+                                    <span class="model-desc">OpenAI 模型</span>
+                                </div>
+                                <div class="model-checkbox">
+                                    <input type="checkbox" id="model-chatgpt" name="selectedModels" value="chatgpt">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-section">
+                        <button id="sendToModelsBtn" class="send-btn" disabled>
+                            <span class="btn-text">发送到选中的模型</span>
+                        </button>
+                        
+                        <div class="auto-fill-toggle">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="autoFillToggle" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-text">自动填充并发送</span>
+                                <span class="toggle-description" id="toggleDescription">开启后将自动在AI网站中填充并发送提示词</span>
+                            </label>
+                        </div>
+                        
+                        <div class="selected-count">
+                            <span id="selectedCount">未选择任何模型</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 其他Tab内容 -->
+                <div id="tabContent" style="display: none;">
                     <div class="loading">正在加载...</div>
                 </div>
             </div>

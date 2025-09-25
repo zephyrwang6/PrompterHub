@@ -489,20 +489,8 @@ class PrompterHubSidepanel {
     bindHomepageEvents() {
         // 模型选择事件
         document.querySelectorAll('.model-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                // 如果点击的是checkbox，不处理卡片点击
-                if (e.target.type === 'checkbox') return;
-                
-                const checkbox = card.querySelector('input[type="checkbox"]');
-                checkbox.checked = !checkbox.checked;
-                this.handleModelSelection();
-            });
-        });
-
-        // 复选框事件
-        document.querySelectorAll('input[name="selectedModels"]').forEach(checkbox => {
-            checkbox.addEventListener('change', () => {
-                this.handleModelSelection();
+            card.addEventListener('click', () => {
+                this.toggleModelSelection(card);
             });
         });
 
@@ -522,13 +510,37 @@ class PrompterHubSidepanel {
             });
         }
 
-        // 自动填充切换开关事件
-        const autoFillToggle = document.getElementById('autoFillToggle');
-        if (autoFillToggle) {
-            autoFillToggle.addEventListener('change', () => {
-                this.handleAutoFillToggle();
-            });
+        // 初始化时默认选中所有模型
+        this.selectAllModels();
+    }
+
+    // 切换模型选择状态
+    toggleModelSelection(card) {
+        const isSelected = card.classList.contains('selected');
+        const modelValue = card.dataset.value;
+        
+        if (isSelected) {
+            // 取消选择
+            card.classList.remove('selected');
+            this.selectedModels.delete(modelValue);
+        } else {
+            // 选择
+            card.classList.add('selected');
+            this.selectedModels.add(modelValue);
         }
+        
+        this.updateSendButtonState();
+    }
+
+    // 选中所有模型
+    selectAllModels() {
+        const cards = document.querySelectorAll('.model-card');
+        cards.forEach(card => {
+            const modelValue = card.dataset.value;
+            card.classList.add('selected');
+            this.selectedModels.add(modelValue);
+        });
+        this.updateSendButtonState();
     }
 
     // 处理模型选择
@@ -555,8 +567,16 @@ class PrompterHubSidepanel {
         const countElement = document.getElementById('selectedCount');
         if (!countElement) return;
 
-        // 隐藏选择数量提示
-        countElement.style.display = 'none';
+        const count = this.selectedModels.size;
+        if (count === 0) {
+            countElement.textContent = '未选择任何模型';
+        } else {
+            const modelNames = Array.from(this.selectedModels).map(modelId => {
+                const card = document.querySelector(`input[value="${modelId}"]`).closest('.model-card');
+                return card.dataset.name;
+            }).join('、');
+            countElement.textContent = `已选择 ${count} 个模型：${modelNames}`;
+        }
     }
 
     // 更新发送按钮状态
@@ -566,20 +586,183 @@ class PrompterHubSidepanel {
         
         if (!sendBtn || !promptInput) return;
 
-        const hasModels = this.selectedModels.size > 0;
         const hasContent = promptInput.value.trim().length > 0;
+        const hasSelectedModels = this.selectedModels.size > 0;
         
-        sendBtn.disabled = !hasModels || !hasContent;
+        // 发送按钮状态依赖于是否有内容和是否选择了模型
+        sendBtn.disabled = !hasContent || !hasSelectedModels;
         
         // 更新按钮文本
         const btnText = sendBtn.querySelector('.btn-text');
         if (btnText) {
-            if (!hasModels) {
-                btnText.textContent = '请先选择模型';
-            } else if (!hasContent) {
+            if (!hasContent) {
                 btnText.textContent = '请输入提示词';
+            } else if (!hasSelectedModels) {
+                btnText.textContent = '请选择模型';
             } else {
-                btnText.textContent = `发送到 ${this.selectedModels.size} 个模型`;
+                btnText.textContent = '发送';
+            }
+        }
+    }
+
+    // 发送到选中的模型
+    async sendToSelectedModels() {
+        const promptInput = document.getElementById('promptInput');
+        if (!promptInput) return;
+
+        const promptText = promptInput.value.trim();
+        if (!promptText) {
+            this.showToast('请输入提示词内容', 'warning');
+            return;
+        }
+
+        if (this.selectedModels.size === 0) {
+            this.showToast('请选择至少一个AI模型', 'warning');
+            return;
+        }
+
+        // 定义所有模型映射
+        const modelMap = {
+            'deepseek': { id: 'deepseek', name: 'DeepSeek', url: 'https://chat.deepseek.com/' },
+            'doubao': { id: 'doubao', name: '豆包', url: 'https://www.doubao.com/chat/' },
+            'kimi': { id: 'kimi', name: 'Kimi', url: 'https://www.kimi.com/' },
+            'jimeng': { id: 'jimeng', name: '即梦', url: 'https://jimeng.jianying.com/ai-tool/home' },
+            'zhipu': { id: 'zhipu', name: '智谱清言', url: 'https://chatglm.cn/main/alltoolsdetail?lang=zh' },
+            'gemini': { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com/app' },
+            'grok': { id: 'grok', name: 'Grok', url: 'https://grok.com/' }
+        };
+
+        // 获取选中的模型
+        const selectedModels = Array.from(this.selectedModels).map(id => modelMap[id]).filter(Boolean);
+
+        try {
+            // 首先复制到剪贴板作为备选方案
+            try {
+                await navigator.clipboard.writeText(promptText);
+                console.log('✅ 提示词已复制到剪贴板');
+            } catch (error) {
+                console.warn('❌ 剪贴板复制失败:', error);
+            }
+
+            // 更新按钮状态
+            const sendBtn = document.getElementById('sendToModelsBtn');
+            const originalText = sendBtn.querySelector('.btn-text').textContent;
+            sendBtn.disabled = true;
+            sendBtn.querySelector('.btn-text').textContent = '正在发送...';
+
+            // 显示开始提示
+            this.showToast(`🚀 开始向 ${selectedModels.length} 个AI模型发送提示词...`, 'info', 2000);
+
+            // 依次打开选中的模型并自动填充
+            const results = [];
+            
+            for (let i = 0; i < selectedModels.length; i++) {
+                const model = selectedModels[i];
+                
+                try {
+                    // 创建新标签页
+                    const tab = await chrome.tabs.create({ 
+                        url: model.url,
+                        active: i === 0 // 第一个标签页设为活动状态
+                    });
+
+                    // 等待页面加载并确保内容脚本已注入
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
+                    // 首先检查内容脚本是否已加载
+                    let scriptReady = false;
+                    try {
+                        const readyResponse = await chrome.tabs.sendMessage(tab.id, {
+                            action: 'checkReady'
+                        });
+                        scriptReady = readyResponse && readyResponse.ready;
+                        console.log(`📊 ${model.name} 内容脚本状态:`, scriptReady ? '已就绪' : '未就绪');
+                    } catch (error) {
+                        console.warn(`⚠️ ${model.name}: 无法检查内容脚本状态`, error);
+                    }
+
+                    // 如果内容脚本未就绪，尝试手动注入
+                    if (!scriptReady) {
+                        try {
+                            console.log(`🔧 手动注入内容脚本到 ${model.name}`);
+                            await chrome.scripting.executeScript({
+                                target: { tabId: tab.id },
+                                files: ['ai-sites-content.js']
+                            });
+                            // 等待脚本初始化
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        } catch (injectError) {
+                            console.error(`❌ ${model.name}: 手动注入失败`, injectError);
+                        }
+                    }
+
+                    // 发送消息到内容脚本进行自动填充和发送
+                    try {
+                        const response = await chrome.tabs.sendMessage(tab.id, {
+                            action: 'fillAndSend',
+                            text: promptText
+                        });
+                        
+                        if (response && response.success) {
+                            results.push({ model: model.name, success: true, message: response.message });
+                            console.log(`✅ ${model.name}: ${response.message}`);
+                        } else {
+                            // 自动发送失败时，提示用户手动粘贴
+                            const errorMsg = response?.error || '未知错误';
+                            results.push({ 
+                                model: model.name, 
+                                success: false, 
+                                message: `自动发送失败 (${errorMsg})，已复制到剪贴板，请在 ${model.name} 中手动粘贴 (Ctrl+V)` 
+                            });
+                            console.warn(`❌ ${model.name}: 自动发送失败 - ${errorMsg}`);
+                        }
+                    } catch (error) {
+                        results.push({ 
+                            model: model.name, 
+                            success: false, 
+                            message: `连接失败，已复制到剪贴板，请在 ${model.name} 中手动粘贴 (Ctrl+V)` 
+                        });
+                        console.warn(`❌ ${model.name}: 通信失败`, error);
+                    }
+
+                    // 间隔500ms避免浏览器阻止
+                    if (i < selectedModels.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                } catch (error) {
+                    results.push({ model: model.name, success: false, message: `打开失败: ${error.message}` });
+                    console.error(`❌ ${model.name}: 打开失败`, error);
+                }
+            }
+
+            // 统计结果
+            const successCount = results.filter(r => r.success).length;
+            const failedCount = results.filter(r => !r.success).length;
+
+            // 显示结果
+            if (successCount === selectedModels.length) {
+                this.showToast(`🎉 成功自动向所有 ${selectedModels.length} 个AI模型发送提示词！`, 'success', 4000);
+            } else if (successCount > 0) {
+                this.showToast(`✅ 自动发送到 ${successCount} 个模型成功，${failedCount} 个需要手动粘贴`, 'info', 5000);
+            } else {
+                this.showToast(`📋 已复制提示词到剪贴板，请在各AI网站中手动粘贴 (Ctrl+V)`, 'info', 5000);
+            }
+
+            // 清空输入框
+            promptInput.value = '';
+
+        } catch (error) {
+            console.error('发送过程出错:', error);
+            this.showToast('发送过程出错，请重试', 'error');
+        } finally {
+            // 恢复按钮状态
+            const sendBtn = document.getElementById('sendToModelsBtn');
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                const btnText = sendBtn.querySelector('.btn-text');
+                if (btnText) {
+                    btnText.textContent = '发送';
+                }
             }
         }
     }
@@ -601,34 +784,6 @@ class PrompterHubSidepanel {
         this.updateSendButtonState();
     }
 
-    // 发送到选中的模型
-    async sendToSelectedModels() {
-        const promptInput = document.getElementById('promptInput');
-        if (!promptInput) return;
-
-        const promptText = promptInput.value.trim();
-        if (!promptText) {
-            this.showToast('请输入提示词内容', 'warning');
-            return;
-        }
-
-        if (this.selectedModels.size === 0) {
-            this.showToast('请选择至少一个AI模型', 'warning');
-            return;
-        }
-
-        // 检查是否启用自动填充
-        const autoFillToggle = document.getElementById('autoFillToggle');
-        const useAutoFill = autoFillToggle && autoFillToggle.checked;
-
-        if (useAutoFill) {
-            // 使用自动填充模式
-            await this.sendWithAutoFill(promptText);
-        } else {
-            // 使用传统的复制粘贴模式
-            await this.sendWithCopyPaste(promptText);
-        }
-    }
 
     // 自动填充模式发送
     async sendWithAutoFill(promptText) {
