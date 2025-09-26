@@ -20,7 +20,7 @@ class CacheManager {
             if (useMemoryCache && this.memoryCache.has(key)) {
                 const cached = this.memoryCache.get(key);
                 if (this.isValid(cached)) {
-                    console.log(`✅ 内存缓存命中: ${key}`);
+                    // 内存缓存命中
                     return cached.data;
                 } else {
                     this.memoryCache.delete(key);
@@ -30,7 +30,7 @@ class CacheManager {
             // 2. 检查Chrome存储缓存
             const result = await chrome.storage.local.get([key]);
             if (result[key] && this.isValid(result[key])) {
-                console.log(`✅ 存储缓存命中: ${key}`);
+                // 存储缓存命中
                 // 同时更新内存缓存
                 if (useMemoryCache) {
                     this.memoryCache.set(key, result[key]);
@@ -38,10 +38,10 @@ class CacheManager {
                 return result[key].data;
             }
 
-            console.log(`❌ 缓存未命中: ${key}`);
+            // 缓存未命中
             return null;
         } catch (error) {
-            console.error('缓存读取失败:', error);
+            // 缓存读取失败
             return null;
         }
     }
@@ -63,9 +63,9 @@ class CacheManager {
                 [key]: cacheItem
             });
 
-            console.log(`💾 缓存已设置: ${key} (TTL: ${ttl}ms)`);
+            // 缓存已设置
         } catch (error) {
-            console.error('缓存设置失败:', error);
+            // 缓存设置失败
         }
     }
 
@@ -83,9 +83,9 @@ class CacheManager {
         try {
             this.memoryCache.delete(key);
             await chrome.storage.local.remove([key]);
-            console.log(`🗑️ 缓存已清除: ${key}`);
+            // 缓存已清除
         } catch (error) {
-            console.error('缓存清除失败:', error);
+            // 缓存清除失败
         }
     }
 
@@ -96,9 +96,9 @@ class CacheManager {
             const allKeys = await chrome.storage.local.get(null);
             const cacheKeys = Object.keys(allKeys).filter(key => key.startsWith(this.cachePrefix));
             await chrome.storage.local.remove(cacheKeys);
-            console.log(`🗑️ 已清除所有缓存 (${cacheKeys.length}个)`);
+            // 已清除所有缓存
         } catch (error) {
-            console.error('清除所有缓存失败:', error);
+            // 清除所有缓存失败
         }
     }
 
@@ -128,7 +128,7 @@ class PerformanceMonitor {
     // 结束性能测量
     end(label) {
         if (!this.metrics[label]) {
-            console.warn(`性能监控: 未找到标签 ${label}`);
+            // 性能监控: 未找到标签
             return;
         }
 
@@ -143,7 +143,7 @@ class PerformanceMonitor {
             timestamp: new Date().toISOString()
         };
 
-        console.log(`⚡ 性能指标 [${label}]: ${duration}ms, 内存: ${(memoryUsed / 1024 / 1024).toFixed(2)}MB`);
+        // 性能指标记录
         
         delete this.metrics[label];
         return result;
@@ -151,7 +151,7 @@ class PerformanceMonitor {
 
     // 记录简单指标
     record(label, value) {
-        console.log(`📊 指标 [${label}]: ${value}`);
+        // 指标记录
     }
 }
 
@@ -177,7 +177,8 @@ class PrompterHubSidepanel {
             'jimeng': 'https://jimeng.jianying.com/ai-tool/home',
             'zhipu': 'https://chatglm.cn/main/alltoolsdetail?lang=zh',
             'gemini': 'https://gemini.google.com/app',
-            'grok': 'https://grok.com/'
+            'grok': 'https://grok.com/',
+            'chatgpt': 'https://chatgpt.com/'
         };
         
         // 缓存系统初始化
@@ -198,6 +199,9 @@ class PrompterHubSidepanel {
         
         // 初始化性能监控
         this.initPerformanceMonitoring();
+        
+        // 恢复用户上次选择的模型
+        this.restoreModelSelection();
     }
 
     // 初始化性能监控
@@ -242,7 +246,7 @@ class PrompterHubSidepanel {
             }
         };
         
-        console.log('📊 性能报告:', report);
+        // 性能报告生成
         return report;
     }
 
@@ -311,7 +315,7 @@ class PrompterHubSidepanel {
         const loginBtn = document.getElementById('loginBtn');
         if (loginBtn) {
             loginBtn.addEventListener('click', () => {
-                console.log('Login button clicked');
+                // 登录按钮被点击
                 this.openAuthPage('/auth/login');
             });
         }
@@ -320,7 +324,7 @@ class PrompterHubSidepanel {
         const signupBtn = document.getElementById('signupBtn');
         if (signupBtn) {
             signupBtn.addEventListener('click', () => {
-                console.log('Signup button clicked');
+                // 注册按钮被点击
                 this.openAuthPage('/auth/signup');
             });
         }
@@ -329,7 +333,7 @@ class PrompterHubSidepanel {
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                console.log('Refresh button clicked');
+                // 刷新按钮被点击
                 this.checkAuthStatus(true); // 强制刷新
             });
         }
@@ -338,11 +342,11 @@ class PrompterHubSidepanel {
         const headerLogo = document.querySelector('.header-logo');
         if (headerLogo) {
             headerLogo.addEventListener('click', async () => {
-                console.log('Logo clicked, opening homepage');
+                // Logo被点击
                 try {
                     await chrome.tabs.create({ url: 'https://www.prompterhub.cn' });
                 } catch (error) {
-                    console.error('Failed to open homepage:', error);
+                    // 打开首页失败
                 }
             });
         }
@@ -354,14 +358,14 @@ class PrompterHubSidepanel {
                 if (this.currentUser && this.currentUser.nickname) {
                     const username = this.currentUser.nickname;
                     const userUrl = `https://www.prompterhub.cn/${username}`;
-                    console.log('User info clicked, opening:', userUrl);
+                    // 用户信息被点击
                     try {
                         await chrome.tabs.create({ url: userUrl });
                     } catch (error) {
-                        console.error('Failed to open user page:', error);
+                        // 打开用户页面失败
                     }
                 } else {
-                    console.log('User not logged in or no username available');
+                    // 用户未登录或无用户名
                 }
             });
         }
@@ -425,18 +429,18 @@ class PrompterHubSidepanel {
 
         // Listen for messages from content script and background
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            console.log('Received message:', request);
+            // 收到消息
             
             if (request.type === 'AUTH_STATUS_CHANGED') {
-                console.log('Auth status changed, updating UI');
+                // 认证状态改变
                 
                 // 检查是否从登录状态变为登出状态
                 if (this.lastAuthState?.isLoggedIn && !request.isLoggedIn) {
-                    console.log('User logged out, clearing local state');
+                    // 用户登出
                     this.handleLogout();
                 } else if (request.isLoggedIn && request.user) {
                     // 用户登录，更新状态
-                    console.log('User logged in, updating state');
+                    // 用户登入
                     this.currentUser = request.user;
                     this.showUserPanel();
                     this.loadUserData(this.currentTab);
@@ -462,7 +466,7 @@ class PrompterHubSidepanel {
         // Listen for tab updates
         chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             if (changeInfo.status === 'complete' && tab.url && tab.url.includes('prompterhub.cn')) {
-                console.log('PrompterHub tab updated, checking auth');
+                // PrompterHub标签页更新
                 setTimeout(() => {
                     this.checkAuthStatus();
                 }, 2000);
@@ -472,11 +476,11 @@ class PrompterHubSidepanel {
         // Listen for storage changes
         chrome.storage.onChanged.addListener((changes, namespace) => {
             if (changes.userAuth) {
-                console.log('Storage auth changed:', changes.userAuth);
+                // 存储认证改变
                 
                 // 如果认证信息被清除，立即处理登出
                 if (!changes.userAuth.newValue || !changes.userAuth.newValue.isLoggedIn) {
-                    console.log('Auth storage cleared, handling logout');
+                    // 认证存储被清除
                     this.handleLogout();
                 } else {
                     this.checkAuthStatus(true);
@@ -548,6 +552,9 @@ class PrompterHubSidepanel {
 
         this.updateSelectedCount();
         this.updateSendButtonState();
+        
+        // 保存用户选择到Chrome存储
+        this.saveModelSelection();
     }
 
     // 更新选中数量显示
@@ -557,6 +564,52 @@ class PrompterHubSidepanel {
 
         // 隐藏选择数量提示
         countElement.style.display = 'none';
+    }
+
+    // 保存用户选择的模型到Chrome存储
+    async saveModelSelection() {
+        try {
+            const selectedModelsArray = Array.from(this.selectedModels);
+            await chrome.storage.local.set({
+                'selectedModels': selectedModelsArray
+            });
+        } catch (error) {
+            // 保存失败，静默处理
+        }
+    }
+
+    // 恢复用户上次选择的模型
+    async restoreModelSelection() {
+        try {
+            const result = await chrome.storage.local.get('selectedModels');
+            if (result.selectedModels && Array.isArray(result.selectedModels)) {
+                // 清空当前选择
+                this.selectedModels.clear();
+                
+                // 恢复选择状态
+                result.selectedModels.forEach(modelId => {
+                    this.selectedModels.add(modelId);
+                    
+                    // 更新复选框状态
+                    const checkbox = document.querySelector(`input[value="${modelId}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        
+                        // 更新对应的模型卡片样式
+                        const card = checkbox.closest('.model-card');
+                        if (card) {
+                            card.classList.add('selected');
+                        }
+                    }
+                });
+                
+                // 更新UI状态
+                this.updateSelectedCount();
+                this.updateSendButtonState();
+            }
+        } catch (error) {
+            // 恢复失败，静默处理
+        }
     }
 
     // 更新发送按钮状态
@@ -658,7 +711,7 @@ class PrompterHubSidepanel {
                             active: i === 0 // 第一个标签页设为活动状态
                         });
                         
-                        console.log(`✅ 已打开 ${modelId}: ${url}`);
+                        // 已打开模型网站
                         
                         // 等待页面加载并尝试自动填充
                         setTimeout(async () => {
@@ -671,7 +724,7 @@ class PrompterHubSidepanel {
                                     this.showCompletionSummary(results);
                                 }
                             } catch (error) {
-                                console.error(`${modelId} 自动填充失败:`, error);
+                                // 自动填充失败
                                 results.push({ modelId, success: false, error: error.message });
                                 
                                 // 如果是最后一个模型，显示完成提示
@@ -682,7 +735,7 @@ class PrompterHubSidepanel {
                         }, (i + 1) * 2000); // 每个标签页等待2秒让其加载
                         
                     } catch (error) {
-                        console.error(`打开 ${modelId} 失败:`, error);
+                        // 打开模型网站失败
                         results.push({ modelId, success: false, error: error.message });
                     }
                 }
@@ -695,7 +748,7 @@ class PrompterHubSidepanel {
             }, 3000);
 
         } catch (error) {
-            console.error('自动发送失败:', error);
+            // 自动发送失败
             this.showToast('自动发送失败，请稍后重试', 'error');
             
             // 恢复按钮状态
@@ -731,9 +784,9 @@ class PrompterHubSidepanel {
                                 url: url,
                                 active: i === 0 // 第一个标签页设为活动状态
                             });
-                            console.log(`已打开 ${modelId}: ${url}`);
+                            // 已打开模型网站
                         } catch (error) {
-                            console.error(`打开 ${modelId} 失败:`, error);
+                            // 打开模型网站失败
                         }
                     }, i * 500); // 每个标签页间隔500ms
                 }
@@ -745,7 +798,7 @@ class PrompterHubSidepanel {
             }, 1000);
 
         } catch (error) {
-            console.error('复制粘贴发送失败:', error);
+            // 复制粘贴发送失败
             this.showToast('操作失败，请稍后重试', 'error');
         }
     }
@@ -813,11 +866,11 @@ class PrompterHubSidepanel {
         }
         
         // 显示详细结果（调试用）
-        console.log('📊 发送结果总结:', results);
+        // 发送结果总结
     }
 
     handleLogout() {
-        console.log('Handling user logout');
+        // 处理用户登出
         
         // 清除当前用户信息
         this.currentUser = null;
@@ -863,45 +916,45 @@ class PrompterHubSidepanel {
         try {
             // 清除Chrome存储中的认证信息
             chrome.storage.local.remove(['userAuth'], () => {
-                console.log('Cleared auth data from storage');
+                // 清除认证数据
             });
         } catch (error) {
-            console.error('Failed to clear local auth data:', error);
+            // 清除认证数据失败
         }
     }
 
     async openAuthPage(path) {
         try {
-            console.log(`Opening: ${this.baseUrl}${path}`);
+            // 打开认证页面
             await chrome.tabs.create({
                 url: `${this.baseUrl}${path}`
             });
         } catch (error) {
-            console.error('Failed to open auth page:', error);
+            // 打开认证页面失败
         }
     }
 
     async checkAuthStatus(forceCheck = false) {
         if (this.checkingAuth && !forceCheck) {
-            console.log('Auth check already in progress');
+            // 认证检查已在进行中
             return;
         }
         
         this.checkingAuth = true;
-        console.log('Checking auth status...');
+        // 检查认证状态
 
         try {
             // 方法1: 从存储中获取认证信息
             const result = await chrome.storage.local.get(['userAuth']);
             if (result.userAuth && result.userAuth.isLoggedIn && result.userAuth.user) {
-                console.log('Found auth in storage:', result.userAuth);
+                // 在存储中找到认证信息
                 
                 // 检查状态是否发生变化
                 const wasLoggedOut = !this.currentUser;
                 this.currentUser = result.userAuth.user;
                 
                 if (wasLoggedOut) {
-                    console.log('User logged in from storage, showing user panel');
+                    // 从存储中恢复用户登录状态
                     this.showUserPanel();
                     this.loadUserData(this.currentTab);
                 }
@@ -916,22 +969,22 @@ class PrompterHubSidepanel {
             
             if (currentTab && currentTab.url && currentTab.url.includes('prompterhub.cn')) {
                 try {
-                    console.log('Sending auth check message to current tab');
+                    // 向当前标签页发送认证检查消息
                     const response = await chrome.tabs.sendMessage(currentTab.id, { 
                         type: 'CHECK_AUTH_STATUS' 
                     });
                     
-                    console.log('Response from content script:', response);
+                    // 收到内容脚本响应
                     
                     if (response && response.isLoggedIn && response.user) {
-                        console.log('User is logged in:', response.user);
+                        // 用户已登录
                         
                         // 检查状态是否发生变化
                         const wasLoggedOut = !this.currentUser;
                         this.currentUser = response.user;
                         
                         if (wasLoggedOut) {
-                            console.log('User logged in via content script');
+                            // 通过内容脚本检测到用户登录
                             this.showUserPanel();
                             this.loadUserData(this.currentTab);
                         }
@@ -941,14 +994,14 @@ class PrompterHubSidepanel {
                     } else if (response && !response.isLoggedIn) {
                         // 明确的未登录状态
                         if (this.currentUser) {
-                            console.log('User logged out detected via content script');
+                            // 通过内容脚本检测到用户登出
                             this.handleLogout();
                             this.checkingAuth = false;
                             return;
                         }
                     }
                 } catch (error) {
-                    console.log('Cannot check auth status via content script:', error);
+                    // 无法通过内容脚本检查认证状态
                 }
             }
 
@@ -960,20 +1013,20 @@ class PrompterHubSidepanel {
 
             for (const tab of prompterHubTabs) {
                 try {
-                    console.log(`Checking tab ${tab.id}: ${tab.url}`);
+                    // 检查标签页
                     const response = await chrome.tabs.sendMessage(tab.id, { 
                         type: 'CHECK_AUTH_STATUS' 
                     });
                     
                     if (response && response.isLoggedIn && response.user) {
-                        console.log('Found logged in user in tab:', tab.id, response.user);
+                        // 在标签页中找到已登录用户
                         
                         // 检查状态是否发生变化
                         const wasLoggedOut = !this.currentUser;
                         this.currentUser = response.user;
                         
                         if (wasLoggedOut) {
-                            console.log('User logged in via tab check');
+                            // 通过标签页检查检测到用户登录
                             this.showUserPanel();
                             this.loadUserData(this.currentTab);
                         }
@@ -982,16 +1035,16 @@ class PrompterHubSidepanel {
                         return;
                     }
                 } catch (error) {
-                    console.log(`Cannot check auth in tab ${tab.id}:`, error);
+                    // 无法在标签页中检查认证
                 }
             }
 
             // 没有找到登录状态
-            console.log('No authentication found');
+            // 未找到认证信息
             
             // 如果之前是登录状态，现在变成未登录，处理登出
             if (this.currentUser) {
-                console.log('User state changed from logged in to logged out');
+                // 用户状态从已登录变为未登录
                 this.handleLogout();
             } else {
                 this.currentUser = null;
@@ -999,11 +1052,11 @@ class PrompterHubSidepanel {
             }
             
         } catch (error) {
-            console.error('Failed to check auth status:', error);
+            // 检查认证状态失败
             
             // 错误情况下，如果当前有用户信息且错误可能是因为登出，则处理登出
             if (this.currentUser) {
-                console.log('Error checking auth, user might be logged out');
+                // 认证检查错误，用户可能已登出
                 this.handleLogout();
             } else {
                 this.showLoginPanel();
@@ -1014,7 +1067,7 @@ class PrompterHubSidepanel {
     }
 
     showLoginPanel() {
-        console.log('Showing login panel');
+        // 显示登录面板
         const loginPanel = document.getElementById('loginPanel');
         const userPanel = document.getElementById('userPanel');
         
@@ -1039,7 +1092,7 @@ class PrompterHubSidepanel {
     }
 
     showUserPanel() {
-        console.log('Showing user panel for:', this.currentUser);
+        // 显示用户面板
         const loginPanel = document.getElementById('loginPanel');
         const userPanel = document.getElementById('userPanel');
         
@@ -1179,7 +1232,7 @@ class PrompterHubSidepanel {
     }
 
     switchTab(tabName) {
-        console.log('Switching to tab:', tabName);
+        // 切换到标签页
         document.querySelectorAll('.tab-item').forEach(tab => {
             tab.classList.remove('active');
         });
@@ -1198,6 +1251,11 @@ class PrompterHubSidepanel {
             // 显示首页，隐藏其他内容
             if (homepageContent) homepageContent.style.display = 'block';
             if (tabContent) tabContent.style.display = 'none';
+            
+            // 恢复模型选择状态（确保在DOM元素存在时恢复）
+            setTimeout(() => {
+                this.restoreModelSelection();
+            }, 100);
         } else {
             // 显示其他tab内容，隐藏首页
             if (homepageContent) homepageContent.style.display = 'none';
@@ -1211,7 +1269,6 @@ class PrompterHubSidepanel {
         const tabContent = document.getElementById('tabContent');
         if (!tabContent) return;
         
-        console.log('🔄 加载用户数据 (优化版本):', tabType);
         this.performanceMonitor.start('loadUserData');
         
         try {
@@ -1225,8 +1282,6 @@ class PrompterHubSidepanel {
             let data;
             const userId = this.currentUser.id;
             const userNickname = this.currentUser.nickname || this.currentUser.email?.split('@')[0];
-            
-            console.log('📊 API调用参数:', { userId, userNickname, tabType });
 
             // 2. 根据标签类型执行相应的数据加载
             switch (tabType) {
@@ -1236,7 +1291,6 @@ class PrompterHubSidepanel {
                     }
                     this.updateLoadingProgress('正在获取创作内容...');
                     data = await this.fetchUserCreated(userNickname);
-                    console.log('✅ 创作数据获取完成:', data?.prompts?.length || 0, '条');
                     this.renderPromptCards(data.prompts || [], tabContent, 'prompts');
                     break;
 
@@ -1246,19 +1300,22 @@ class PrompterHubSidepanel {
                     }
                     this.updateLoadingProgress('正在获取点赞内容...');
                     data = await this.fetchUserLikedOptimized(userNickname, userId);
-                    console.log('✅ 点赞数据获取完成:', data?.prompts?.length || 0, '条');
                     this.renderPromptCards(data.prompts || [], tabContent, 'prompts');
                     break;
 
                 case 'collected':
                     this.updateLoadingProgress('正在获取收藏内容...');
                     data = await this.fetchUserCollected(userId);
-                    console.log('✅ 收藏数据获取完成:', data?.templates?.length || 0, '条');
                     this.renderTemplateCards(data.templates || [], tabContent);
                     break;
 
+                case 'homepage':
+                    // 首页不需要加载数据，直接返回
+                    return;
+
                 default:
-                    throw new Error('未知的标签页类型');
+                    // 对于未知的tab类型，不抛出错误，直接返回
+                    return;
             }
 
             // 3. 隐藏加载状态
@@ -1267,10 +1324,7 @@ class PrompterHubSidepanel {
             const duration = this.performanceMonitor.end('loadUserData');
             this.performanceMonitor.record('dataLoadSuccess', true);
             
-            console.log(`✅ 数据加载完成: ${tabType}, 耗时: ${duration?.duration || 0}ms`);
-            
         } catch (error) {
-            console.error('❌ 数据加载失败:', error);
             this.performanceMonitor.end('loadUserData');
             this.performanceMonitor.record('dataLoadSuccess', false);
             
@@ -1283,7 +1337,7 @@ class PrompterHubSidepanel {
                 error.message.includes('Unauthorized') ||
                 error.message.includes('获取用户提示词失败') ||
                 error.message.includes('获取用户点赞提示词失败')) {
-                console.log('🔑 认证错误，用户可能已登出');
+                // 认证错误，用户可能已登出
                 this.handleLogout();
                 return;
             }
@@ -1312,13 +1366,13 @@ class PrompterHubSidepanel {
     // 更新加载进度
     updateLoadingProgress(message) {
         // 简化版本不需要更新进度信息
-        console.log('加载进度:', message);
+        // 加载进度更新
     }
 
     // 更新加载步骤状态
     updateLoadingStep(stepNumber, status) {
         // 简化版本不需要步骤状态
-        console.log('加载步骤:', stepNumber, status);
+        // 加载步骤更新
     }
 
     // 隐藏加载进度
@@ -1404,14 +1458,14 @@ class PrompterHubSidepanel {
     }
 
     async fetchUserPrompts(username) {
-        console.log('Fetching user prompts for username:', username);
+        // 获取用户提示词
         const url = `${this.apiUrl}/users/${encodeURIComponent(username)}/prompts?page=1&limit=20`;
-        console.log('API URL:', url);
+        // API请求
         
         const response = await fetch(url);
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('API Error:', response.status, errorText);
+            // API错误
             throw new Error(`获取创作内容失败: ${response.status} - ${errorText}`);
         }
         return await response.json();
@@ -1422,7 +1476,7 @@ class PrompterHubSidepanel {
         const startTime = Date.now();
         this.performanceMonitor.start('fetchUserCreated');
         
-        console.log('🚀 开始获取用户创作数据 (优化版本)');
+        // 开始获取用户创作数据
         
         try {
             // 1. 检查缓存
@@ -1430,13 +1484,13 @@ class PrompterHubSidepanel {
             const cachedData = await this.cacheManager.get(cacheKey);
             if (cachedData) {
                 this.performanceMonitor.record('cacheHit', true);
-                console.log('✅ 使用缓存数据，耗时:', Date.now() - startTime, 'ms');
+                // 使用缓存数据
                 return cachedData;
             }
 
             // 2. 发起API请求
             const url = `${this.apiUrl}/users/${encodeURIComponent(username)}/prompts?page=1&limit=20`;
-            console.log('📡 获取创作内容:', url);
+            // 获取创作内容
             
             const response = await fetch(url);
             if (!response.ok) {
@@ -1453,12 +1507,12 @@ class PrompterHubSidepanel {
             this.performanceMonitor.end('fetchUserCreated');
             this.performanceMonitor.record('promptsCount', result?.prompts?.length || 0);
             
-            console.log(`✅ 创作数据获取完成: ${result?.prompts?.length || 0}个内容, 耗时: ${totalTime}ms`);
+            // 创作数据获取完成
             return result;
 
         } catch (error) {
             this.performanceMonitor.end('fetchUserCreated');
-            console.error('❌ 获取创作内容失败:', error);
+            // 获取创作内容失败
             throw error;
         }
     }
@@ -1466,12 +1520,12 @@ class PrompterHubSidepanel {
     async fetchUserLiked(username, userId) {
         console.log('Fetching user liked for username:', username, 'userId:', userId);
         const url = `${this.apiUrl}/users/${encodeURIComponent(username)}/liked?page=1&limit=20&userId=${encodeURIComponent(userId)}`;
-        console.log('API URL:', url);
+        // API请求
         
         const response = await fetch(url);
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('API Error:', response.status, errorText);
+            // API错误
             throw new Error(`获取点赞内容失败: ${response.status} - ${errorText}`);
         }
         return await response.json();
@@ -1490,7 +1544,7 @@ class PrompterHubSidepanel {
             const cachedData = await this.cacheManager.get(cacheKey);
             if (cachedData) {
                 this.performanceMonitor.record('cacheHit', true);
-                console.log('✅ 使用缓存数据，耗时:', Date.now() - startTime, 'ms');
+                // 使用缓存数据
                 return cachedData;
             }
 
@@ -1535,7 +1589,7 @@ class PrompterHubSidepanel {
             const cachedData = await this.cacheManager.get(cacheKey);
             if (cachedData) {
                 this.performanceMonitor.record('cacheHit', true);
-                console.log('✅ 使用缓存数据，耗时:', Date.now() - startTime, 'ms');
+                // 使用缓存数据
                 return cachedData;
             }
 

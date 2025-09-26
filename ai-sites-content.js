@@ -12,8 +12,6 @@ class AIAutoFiller {
     }
 
     init() {
-        console.log('🚀 PrompterHub AI自动填充脚本已加载:', window.location.hostname);
-        
         // 等待页面加载完成
         this.waitForPageLoad().then(() => {
             this.initializeAfterLoad();
@@ -48,13 +46,10 @@ class AIAutoFiller {
         // 使用更智能的等待策略
         this.waitForElements().then(() => {
             this.isReady = true;
-            console.log('✅ 页面加载完成，自动填充功能已就绪');
         }).catch((error) => {
-            console.warn('⚠️ 页面初始化警告:', error);
             // 即使元素检测失败，也标记为就绪，在实际使用时再重试
             setTimeout(() => {
                 this.isReady = true;
-                console.log('✅ 延迟标记为就绪');
             }, 3000);
         });
     }
@@ -73,7 +68,6 @@ class AIAutoFiller {
                 const inputElement = this.findElement(this.currentSite.inputSelectors);
                 
                 if (inputElement) {
-                    console.log('✅ 找到输入元素');
                     resolve();
                 } else if (Date.now() - startTime > timeout) {
                     reject(new Error('等待元素超时'));
@@ -118,36 +112,60 @@ class AIAutoFiller {
             'www.doubao.com': {
                 name: '豆包',
                 inputSelectors: [
+                    'textarea[data-testid="chat_input"]',
                     'textarea[placeholder*="输入"]',
                     'textarea[placeholder*="请输入"]',
+                    'textarea[placeholder*="有什么想聊"]',
                     '.chat-input textarea',
+                    '.input-area textarea',
                     '#chat-input',
-                    'textarea'
+                    'textarea',
+                    '[contenteditable="true"]'
                 ],
                 sendSelectors: [
+                    'button[data-testid="send_button"]',
+                    'button[aria-label*="发送"]',
+                    'button[title*="发送"]',
                     'button[type="submit"]',
+                    'button:has(svg[class*="send"])',
                     'button:has(svg)',
                     '.send-button',
-                    'button[aria-label*="发送"]'
+                    'button:last-of-type'
                 ],
-                waitTime: 1000
+                waitTime: 1500,
+                specialHandling: true
             },
             'www.kimi.com': {
                 name: 'Kimi',
                 inputSelectors: [
+                    'textarea[placeholder*="Ask Anything"]',
                     'textarea[placeholder*="输入"]',
                     'textarea[placeholder*="请输入"]',
+                    'textarea[data-testid="chat-input"]',
+                    'textarea[aria-label*="输入"]',
+                    '.input-area textarea',
                     '.chat-input textarea',
+                    '.composer textarea',
                     '#chat-input',
-                    'textarea'
+                    'div[contenteditable="true"][role="textbox"]',
+                    '[contenteditable="true"]',
+                    'textarea',
+                    'input[type="text"]'
                 ],
                 sendSelectors: [
+                    'button[data-testid="send-button"]',
+                    'button[aria-label*="Send"]',
+                    'button[aria-label*="发送"]',
+                    'button[title*="Send"]',
+                    'button[title*="发送"]',
                     'button[type="submit"]',
+                    'button:has(svg[class*="send"])',
                     'button:has(svg)',
                     '.send-button',
-                    'button[aria-label*="发送"]'
+                    'button:last-of-type'
                 ],
-                waitTime: 1000
+                waitTime: 1500,
+                specialHandling: true
             },
             'jimeng.jianying.com': {
                 name: '即梦',
@@ -186,21 +204,33 @@ class AIAutoFiller {
             'gemini.google.com': {
                 name: 'Gemini',
                 inputSelectors: [
+                    'rich-textarea[placeholder*="Enter a prompt here"] textarea',
+                    'rich-textarea textarea',
+                    'textarea[placeholder*="Enter a prompt here"]',
                     'textarea[placeholder*="Enter"]',
                     'textarea[placeholder*="输入"]',
+                    'textarea[aria-label*="Message"]',
+                    'textarea[data-testid="input-textarea"]',
+                    '.input-area textarea',
                     '.chat-input textarea',
-                    'rich-textarea textarea',
-                    'textarea[data-testid="chat-input"]',
+                    'div[contenteditable="true"][role="textbox"]',
+                    '[contenteditable="true"]',
                     'textarea'
                 ],
                 sendSelectors: [
+                    'button[data-testid="send-button"]',
+                    'button[aria-label*="Send message"]',
                     'button[aria-label*="Send"]',
                     'button[aria-label*="发送"]',
+                    'button[title*="Send"]',
                     'button[type="submit"]',
+                    'button:has(svg[class*="send"])',
                     'button:has(svg)',
-                    '.send-button'
+                    '.send-button',
+                    'button:last-of-type'
                 ],
-                waitTime: 1000
+                waitTime: 1500,
+                specialHandling: true
             },
             'grok.com': {
                 name: 'Grok',
@@ -218,6 +248,38 @@ class AIAutoFiller {
                     'button[aria-label*="Send"]'
                 ],
                 waitTime: 1000
+            },
+            'chatgpt.com': {
+                name: 'ChatGPT',
+                inputSelectors: [
+                    '#prompt-textarea',
+                    'textarea[id="prompt-textarea"]',
+                    'textarea[placeholder*="Message ChatGPT"]',
+                    'textarea[placeholder*="Message"]',
+                    'textarea[data-id="root"]',
+                    'textarea[rows]',
+                    '.composer-text-area textarea',
+                    '.text-base textarea',
+                    'div[contenteditable="true"][data-id="root"]',
+                    'div[contenteditable="true"]',
+                    '[contenteditable="true"]',
+                    'textarea',
+                    '#chat-input'
+                ],
+                sendSelectors: [
+                    'button[data-testid="send-button"]',
+                    'button[aria-label*="Send message"]',
+                    'button[aria-label*="Send"]',
+                    'button[title*="Send"]',
+                    'button:has([data-testid="send-button-icon"])',
+                    'button:has(svg[class*="send"])',
+                    'button[type="submit"]',
+                    'button:has(svg)',
+                    '.send-button',
+                    'button:last-of-type'
+                ],
+                waitTime: 1500,
+                specialHandling: true
             }
         };
     }
@@ -228,14 +290,11 @@ class AIAutoFiller {
     }
 
     async handleMessage(request, sender, sendResponse) {
-        console.log('📨 收到消息:', request);
-
         if (request.action === 'fillAndSend') {
             try {
                 const result = await this.fillAndSend(request.text);
                 sendResponse({ success: true, message: result });
             } catch (error) {
-                console.error('❌ 自动填充失败:', error);
                 sendResponse({ success: false, error: error.message });
             }
         } else if (request.action === 'checkReady') {
@@ -251,8 +310,6 @@ class AIAutoFiller {
     async fillAndSend(text) {
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
             try {
-                console.log(`📝 第 ${attempt}/${this.maxRetries} 次尝试在 ${this.currentSite?.name || window.location.hostname} 上自动填充`);
-                
                 // 等待页面就绪
                 await this.ensureReady();
                 
@@ -265,8 +322,6 @@ class AIAutoFiller {
                 if (!inputElement) {
                     throw new Error(`在 ${this.currentSite.name} 上找不到输入框`);
                 }
-
-                console.log('✅ 找到输入框:', inputElement.tagName, inputElement.className);
 
                 // 确保输入框准备就绪
                 await this.ensureElementReady(inputElement);
@@ -289,10 +344,7 @@ class AIAutoFiller {
                 }
 
             } catch (error) {
-                console.warn(`❌ 第 ${attempt} 次尝试失败:`, error.message);
-                
                 if (attempt === this.maxRetries) {
-                    console.error('❌ 所有重试都失败了');
                     throw new Error(`自动填充失败: ${error.message}`);
                 }
                 
@@ -313,7 +365,6 @@ class AIAutoFiller {
         
         if (!this.isReady) {
             // 即使未就绪也继续尝试，可能页面检测有问题
-            console.warn('⚠️ 页面可能未完全就绪，继续尝试...');
         }
     }
 
@@ -343,7 +394,7 @@ class AIAutoFiller {
             element.focus();
             await this.sleep(300);
         } catch (e) {
-            console.warn('聚焦失败:', e);
+            // 聚焦失败，继续执行
         }
         
         // 如果元素不可见，尝试点击父容器
@@ -363,12 +414,11 @@ class AIAutoFiller {
                 for (const element of elements) {
                     // 检查元素是否可见和可交互
                     if (this.isElementVisible(element) && this.isElementInteractable(element)) {
-                        console.log('✅ 找到可用元素:', selector);
                         return element;
                     }
                 }
             } catch (error) {
-                console.warn('⚠️ 选择器无效:', selector, error);
+                // 选择器无效，继续尝试下一个
             }
         }
         return null;
@@ -397,7 +447,26 @@ class AIAutoFiller {
 
     // 智能填充输入框内容
     async smartFillInput(element, text) {
-        console.log('🎯 开始智能填充内容...');
+        
+        // 豆包特殊处理
+        if (this.currentSite && this.currentSite.specialHandling && window.location.hostname === 'www.doubao.com') {
+            return await this.handleDoubaoInput(element, text);
+        }
+        
+        // Gemini特殊处理
+        if (this.currentSite && this.currentSite.specialHandling && window.location.hostname === 'gemini.google.com') {
+            return await this.handleGeminiInput(element, text);
+        }
+        
+        // ChatGPT特殊处理
+        if (this.currentSite && this.currentSite.specialHandling && window.location.hostname === 'chatgpt.com') {
+            return await this.handleChatGPTInput(element, text);
+        }
+        
+        // Kimi特殊处理
+        if (this.currentSite && this.currentSite.specialHandling && window.location.hostname === 'www.kimi.com') {
+            return await this.handleKimiInput(element, text);
+        }
         
         // 多种清空和填充方法
         const fillMethods = [
@@ -452,11 +521,10 @@ class AIAutoFiller {
                 
                 // 验证填充是否成功
                 if (this.verifyInputContent(element, text)) {
-                    console.log(`✅ 填充方法 ${i + 1} 成功`);
                     return true;
                 }
             } catch (error) {
-                console.warn(`填充方法 ${i + 1} 失败:`, error);
+                // 填充方法失败，继续尝试下一个
             }
         }
         
@@ -493,7 +561,6 @@ class AIAutoFiller {
         const actualContent = this.getElementValue(element);
         const textToCheck = expectedText.substring(0, Math.min(20, expectedText.length));
         const isValid = actualContent.includes(textToCheck) || actualContent.length > expectedText.length * 0.8;
-        console.log('验证填充结果:', { expected: textToCheck, actual: actualContent.substring(0, 20), isValid });
         return isValid;
     }
 
@@ -513,7 +580,6 @@ class AIAutoFiller {
 
     // 智能发送
     async smartSend(inputElement) {
-        console.log('🚀 开始智能发送...');
         
         // 查找发送按钮
         const sendButton = await this.findElementWithWait(this.currentSite.sendSelectors, 3000);
@@ -549,10 +615,9 @@ class AIAutoFiller {
                 try {
                     method();
                     await this.sleep(500);
-                    console.log('✅ 按钮点击成功');
                     return { success: true, method: 'button' };
                 } catch (error) {
-                    console.warn('按钮点击方式失败:', error);
+                    // 按钮点击方式失败，继续尝试下一个
                 }
             }
             
@@ -597,14 +662,12 @@ class AIAutoFiller {
                 
                 // 如果方法返回了明确的成功标志，则认为成功
                 if (result === true) {
-                    console.log(`✅ 键盘发送方式 ${i + 1} 成功`);
                     return { success: true, method: `keyboard-${i + 1}` };
                 }
                 
-                console.log(`✅ 键盘发送方式 ${i + 1} 执行`);
                 return { success: true, method: `keyboard-${i + 1}` };
             } catch (error) {
-                console.warn(`键盘发送方式 ${i + 1} 失败:`, error);
+                // 键盘发送方式失败，继续尝试下一个
             }
         }
 
@@ -620,8 +683,6 @@ class AIAutoFiller {
     }
 
     clickSendButton(button) {
-        console.log('🚀 点击发送按钮');
-        
         // 确保按钮在视口中
         button.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
@@ -640,12 +701,496 @@ class AIAutoFiller {
         if (typeof button.click === 'function') {
             button.click();
         }
-
-        console.log('✅ 发送按钮已点击');
     }
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // 豆包专用输入处理方法
+    async handleDoubaoInput(element, text) {
+        
+        try {
+            // 确保元素获得焦点
+            element.focus();
+            await this.sleep(200);
+            
+            // 方法1: React/Vue兼容的填充方式
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+            nativeInputValueSetter.call(element, text);
+            
+            // 触发React/Vue的change事件
+            const inputEvent = new Event('input', { bubbles: true });
+            element.dispatchEvent(inputEvent);
+            
+            await this.sleep(300);
+            
+            // 验证内容
+            if (this.verifyInputContent(element, text)) {
+                return true;
+            }
+            
+            // 方法2: 如果方法1失败，尝试逐字符输入
+            element.value = '';
+            element.focus();
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                
+                // 模拟键盘按下
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    key: char,
+                    keyCode: char.charCodeAt(0),
+                    which: char.charCodeAt(0),
+                    bubbles: true,
+                    cancelable: true
+                });
+                element.dispatchEvent(keydownEvent);
+                
+                // 更新值
+                element.value += char;
+                
+                // 触发input事件
+                const inputEvent = new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'insertText',
+                    data: char
+                });
+                element.dispatchEvent(inputEvent);
+                
+                // 模拟键盘释放
+                const keyupEvent = new KeyboardEvent('keyup', {
+                    key: char,
+                    keyCode: char.charCodeAt(0),
+                    which: char.charCodeAt(0),
+                    bubbles: true,
+                    cancelable: true
+                });
+                element.dispatchEvent(keyupEvent);
+                
+                // 短暂延迟，模拟真实输入
+                await this.sleep(20);
+            }
+            
+            // 最终验证
+            await this.sleep(500);
+            if (this.verifyInputContent(element, text)) {
+                return true;
+            }
+            
+            throw new Error('豆包填充验证失败');
+            
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Gemini专用输入处理方法
+    async handleGeminiInput(element, text) {
+        
+        try {
+            // 确保元素获得焦点
+            element.focus();
+            await this.sleep(300);
+            
+            // 方法1: 处理contenteditable元素
+            if (element.contentEditable === 'true' || element.getAttribute('contenteditable') === 'true') {
+                
+                // 清空内容
+                element.textContent = '';
+                element.innerHTML = '';
+                
+                // 设置新内容
+                element.textContent = text;
+                element.innerHTML = text;
+                
+                // 触发事件
+                const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                element.dispatchEvent(inputEvent);
+                element.dispatchEvent(changeEvent);
+                
+                await this.sleep(500);
+                
+                if (element.textContent.includes(text) || element.innerHTML.includes(text)) {
+                    return true;
+                }
+            }
+            
+            // 方法2: 标准textarea处理
+            if (element.tagName.toLowerCase() === 'textarea') {
+                
+                // 使用原生setter
+                const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+                nativeValueSetter.call(element, text);
+                
+                // 触发完整的事件序列
+                const events = [
+                    new Event('focus', { bubbles: true }),
+                    new Event('input', { bubbles: true, cancelable: true }),
+                    new Event('change', { bubbles: true, cancelable: true }),
+                    new KeyboardEvent('keyup', { bubbles: true, cancelable: true })
+                ];
+                
+                events.forEach(event => element.dispatchEvent(event));
+                
+                await this.sleep(500);
+                
+                if (this.verifyInputContent(element, text)) {
+                    return true;
+                }
+            }
+            
+            // 方法3: 模拟键盘输入（适用于复杂的富文本编辑器）
+            // 尝试模拟键盘输入
+            
+            // 先清空
+            element.focus();
+            await this.sleep(200);
+            
+            // 全选并删除
+            document.execCommand('selectAll', false, null);
+            document.execCommand('delete', false, null);
+            
+            await this.sleep(200);
+            
+            // 逐字符输入
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                
+                // 使用execCommand插入文本
+                if (document.execCommand) {
+                    document.execCommand('insertText', false, char);
+                } else {
+                    // 备用方法：直接设置值
+                    if (element.tagName.toLowerCase() === 'textarea') {
+                        element.value += char;
+                    } else {
+                        element.textContent += char;
+                    }
+                }
+                
+                // 触发输入事件
+                const inputEvent = new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'insertText',
+                    data: char
+                });
+                element.dispatchEvent(inputEvent);
+                
+                // 短暂延迟
+                await this.sleep(10);
+            }
+            
+            // 最终验证
+            await this.sleep(800);
+            const finalContent = element.value || element.textContent || element.innerHTML;
+            if (finalContent.includes(text)) {
+                return true;
+            }
+            
+            throw new Error('Gemini填充验证失败');
+            
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // ChatGPT专用输入处理方法
+    async handleChatGPTInput(element, text) {
+        
+        try {
+            // 确保元素获得焦点
+            element.focus();
+            await this.sleep(300);
+            
+            // 方法1: 处理textarea元素
+            if (element.tagName.toLowerCase() === 'textarea') {
+                
+                // 清空现有内容
+                element.value = '';
+                element.focus();
+                
+                // 使用原生setter设置值
+                const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+                nativeValueSetter.call(element, text);
+                
+                // 触发React事件
+                const inputEvent = new Event('input', { bubbles: true });
+                const changeEvent = new Event('change', { bubbles: true });
+                element.dispatchEvent(inputEvent);
+                element.dispatchEvent(changeEvent);
+                
+                await this.sleep(500);
+                
+                if (this.verifyInputContent(element, text)) {
+                    return true;
+                }
+            }
+            
+            // 方法2: 处理contenteditable元素
+            if (element.contentEditable === 'true' || element.getAttribute('contenteditable') === 'true') {
+                
+                // 清空内容
+                element.textContent = '';
+                element.innerHTML = '';
+                element.focus();
+                
+                await this.sleep(200);
+                
+                // 设置新内容
+                element.textContent = text;
+                
+                // 触发事件
+                const events = [
+                    new Event('input', { bubbles: true, cancelable: true }),
+                    new Event('change', { bubbles: true, cancelable: true }),
+                    new KeyboardEvent('keyup', { bubbles: true, cancelable: true })
+                ];
+                
+                events.forEach(event => element.dispatchEvent(event));
+                
+                await this.sleep(500);
+                
+                if (element.textContent.includes(text) || element.innerHTML.includes(text)) {
+                    return true;
+                }
+            }
+            
+            // 方法3: 模拟键盘输入
+            // ChatGPT模拟键盘输入
+            
+            // 先清空
+            element.focus();
+            await this.sleep(200);
+            
+            // 全选并删除现有内容
+            if (element.tagName.toLowerCase() === 'textarea') {
+                element.select();
+                document.execCommand('delete', false, null);
+            } else {
+                document.execCommand('selectAll', false, null);
+                document.execCommand('delete', false, null);
+            }
+            
+            await this.sleep(300);
+            
+            // 逐字符输入
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                
+                // 模拟键盘事件
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    key: char,
+                    keyCode: char.charCodeAt(0),
+                    which: char.charCodeAt(0),
+                    bubbles: true,
+                    cancelable: true
+                });
+                element.dispatchEvent(keydownEvent);
+                
+                // 使用execCommand插入文本
+                if (document.execCommand) {
+                    document.execCommand('insertText', false, char);
+                } else {
+                    // 备用方法
+                    if (element.tagName.toLowerCase() === 'textarea') {
+                        element.value += char;
+                    } else {
+                        element.textContent += char;
+                    }
+                }
+                
+                // 触发输入事件
+                const inputEvent = new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'insertText',
+                    data: char
+                });
+                element.dispatchEvent(inputEvent);
+                
+                // 模拟键盘释放
+                const keyupEvent = new KeyboardEvent('keyup', {
+                    key: char,
+                    keyCode: char.charCodeAt(0),
+                    which: char.charCodeAt(0),
+                    bubbles: true,
+                    cancelable: true
+                });
+                element.dispatchEvent(keyupEvent);
+                
+                // 短暂延迟模拟真实输入
+                await this.sleep(15);
+            }
+            
+            // 最终验证
+            await this.sleep(800);
+            const finalContent = element.value || element.textContent || element.innerHTML;
+            if (finalContent.includes(text)) {
+                return true;
+            }
+            
+            throw new Error('ChatGPT填充验证失败');
+            
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Kimi专用输入处理方法
+    async handleKimiInput(element, text) {
+        
+        try {
+            // 确保元素获得焦点
+            element.focus();
+            await this.sleep(300);
+            
+            // 方法1: 处理textarea元素
+            if (element.tagName.toLowerCase() === 'textarea') {
+                
+                // 清空现有内容
+                element.value = '';
+                element.focus();
+                
+                // 使用原生setter设置值
+                const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+                nativeValueSetter.call(element, text);
+                
+                // 触发现代框架事件
+                const events = [
+                    new Event('input', { bubbles: true, cancelable: true }),
+                    new Event('change', { bubbles: true, cancelable: true }),
+                    new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: text }),
+                    new KeyboardEvent('keyup', { bubbles: true, cancelable: true })
+                ];
+                
+                events.forEach(event => element.dispatchEvent(event));
+                
+                await this.sleep(500);
+                
+                if (this.verifyInputContent(element, text)) {
+                    return true;
+                }
+            }
+            
+            // 方法2: 处理contenteditable元素
+            if (element.contentEditable === 'true' || element.getAttribute('contenteditable') === 'true') {
+                
+                // 清空内容
+                element.textContent = '';
+                element.innerHTML = '';
+                element.focus();
+                
+                await this.sleep(200);
+                
+                // 设置新内容
+                element.textContent = text;
+                
+                // 触发事件
+                const events = [
+                    new Event('input', { bubbles: true, cancelable: true }),
+                    new Event('change', { bubbles: true, cancelable: true }),
+                    new KeyboardEvent('keyup', { bubbles: true, cancelable: true }),
+                    new Event('blur', { bubbles: true }),
+                    new Event('focus', { bubbles: true })
+                ];
+                
+                events.forEach(event => element.dispatchEvent(event));
+                
+                await this.sleep(500);
+                
+                if (element.textContent.includes(text) || element.innerHTML.includes(text)) {
+                    return true;
+                }
+            }
+            
+            // 方法3: 模拟用户输入（适用于复杂的前端框架）
+            // Kimi模拟用户输入
+            
+            // 先清空
+            element.focus();
+            await this.sleep(200);
+            
+            // 全选并删除现有内容
+            if (element.tagName.toLowerCase() === 'textarea' || element.tagName.toLowerCase() === 'input') {
+                element.select();
+                document.execCommand('delete', false, null);
+            } else {
+                document.execCommand('selectAll', false, null);
+                document.execCommand('delete', false, null);
+            }
+            
+            await this.sleep(300);
+            
+            // 逐字符输入模拟真实用户行为
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                
+                // 模拟按键按下
+                const keydownEvent = new KeyboardEvent('keydown', {
+                    key: char,
+                    code: `Key${char.toUpperCase()}`,
+                    keyCode: char.charCodeAt(0),
+                    which: char.charCodeAt(0),
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true
+                });
+                element.dispatchEvent(keydownEvent);
+                
+                // 插入字符
+                if (document.execCommand) {
+                    document.execCommand('insertText', false, char);
+                } else {
+                    // 备用方法
+                    if (element.tagName.toLowerCase() === 'textarea' || element.tagName.toLowerCase() === 'input') {
+                        element.value += char;
+                    } else {
+                        element.textContent += char;
+                    }
+                }
+                
+                // 触发输入事件
+                const inputEvent = new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true,
+                    inputType: 'insertText',
+                    data: char
+                });
+                element.dispatchEvent(inputEvent);
+                
+                // 模拟按键释放
+                const keyupEvent = new KeyboardEvent('keyup', {
+                    key: char,
+                    code: `Key${char.toUpperCase()}`,
+                    keyCode: char.charCodeAt(0),
+                    which: char.charCodeAt(0),
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true
+                });
+                element.dispatchEvent(keyupEvent);
+                
+                // 短暂延迟模拟真实输入速度
+                await this.sleep(20);
+            }
+            
+            // 最终验证
+            await this.sleep(800);
+            const finalContent = element.value || element.textContent || element.innerHTML;
+            if (finalContent.includes(text)) {
+                return true;
+            }
+            
+            throw new Error('Kimi填充验证失败');
+            
+        } catch (error) {
+            throw error;
+        }
     }
 }
 
